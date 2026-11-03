@@ -12,9 +12,9 @@
   --yellow:#f2c230;--red:#d9443b;--green:#2f9e62;--orange:#e38a2b;--purple:#7a5cc7;--onrow:#e6f6ec;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --navy:#cfe6f7;--blue:#5aa9e6;--sky:#16324a;--ink:#e3eef6;--muted:#93a9ba;--paper:#0b1a28;--card:#112638;--line:#1f3d55;--onrow:#123a2a;
+  --navy:#cfe6f7;--blue:#5aa9e6;--sky:#16324a;--ink:#e3eef6;--muted:#93a9ba;--paper:#0b1a28;--card:#112638;--line:#1f3d55;--onrow:#123a2a;color-scheme:dark;
 }}
-:root[data-theme="dark"]{--navy:#cfe6f7;--blue:#5aa9e6;--sky:#16324a;--ink:#e3eef6;--muted:#93a9ba;--paper:#0b1a28;--card:#112638;--line:#1f3d55;--onrow:#123a2a}
+:root[data-theme="dark"]{--navy:#cfe6f7;--blue:#5aa9e6;--sky:#16324a;--ink:#e3eef6;--muted:#93a9ba;--paper:#0b1a28;--card:#112638;--line:#1f3d55;--onrow:#123a2a;color-scheme:dark}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--paper);color:var(--ink);font-family:Inter,"Segoe UI",Arial,sans-serif;-webkit-tap-highlight-color:transparent;padding-bottom:env(safe-area-inset-bottom)}
@@ -23,7 +23,7 @@ button{cursor:pointer}
 button:disabled{cursor:default}
 
 /* cabeçalho fixo */
-header{background:linear-gradient(135deg,#102f4d,#1d5c8b);color:#fff;padding:10px 12px;position:sticky;top:0;z-index:20;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+header{background:linear-gradient(135deg,#102f4d,#1d5c8b);color:#fff;padding-block:10px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));position:sticky;top:env(safe-area-inset-top,0px);z-index:20;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .hrow{display:flex;align-items:center;gap:10px;max-width:900px;margin:0 auto}
 .clock{font-size:2rem;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
 .clockinfo{font-size:.72rem;color:#b9e3fa;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
@@ -54,8 +54,9 @@ header{background:linear-gradient(135deg,#102f4d,#1d5c8b);color:#fff;padding:10p
 .lineup span.sc{background:var(--green);color:#fff}
 h3.sub{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 2px 8px}
 td.pos{color:var(--green);font-weight:900}td.neg{color:var(--red);font-weight:900}
-main{max-width:900px;margin:0 auto;padding:10px 8px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 8px;margin-bottom:10px}
+main{max-width:900px;margin:0 auto;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:#102f4d}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 6px;margin-bottom:10px}
 h2{font-size:.95rem;margin:2px 2px 10px;color:var(--navy);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 h2 .hint{font-size:.75rem;color:var(--muted);font-weight:600}
 
@@ -164,9 +165,11 @@ details.card>summary::-webkit-details-marker{display:none}
 .act{border:0;border-radius:12px;padding:14px 10px;font-weight:800;text-align:left;color:#fff}
 .a-fs{background:#3f8fb8}.a-g{background:var(--green)}.a-hl{background:#b78a1f}
 .sheet textarea{width:100%;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:10px;margin-top:10px}
+.dbtns{display:flex;gap:8px;margin-top:12px}.dbtns .btn{flex:1;padding:13px}
+#dText{font:12px/1.4 ui-monospace,Menlo,Consolas,monospace;white-space:pre}
 .close{width:100%;margin-top:10px;border:1px solid var(--line);background:transparent;border-radius:12px;padding:12px;font-weight:800}
-.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--navy);color:var(--paper);padding:10px 14px;border-radius:12px;font-weight:700;z-index:60;opacity:0;transition:.25s;display:flex;gap:12px;align-items:center;max-width:92vw}
-.toast.on{opacity:1}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom, 0px));transform:translateX(-50%);background:var(--navy);color:var(--paper);padding:10px 14px;border-radius:12px;font-weight:700;z-index:45;opacity:0;pointer-events:none;transition:.25s;display:flex;gap:12px;align-items:center;max-width:92vw}
+.toast.on{opacity:1;pointer-events:auto}
 .toast button{border:0;background:transparent;color:#e6b64a;font-weight:900;padding:0}
 
 @media(max-width:360px){
@@ -222,7 +225,7 @@ details.card>summary::-webkit-details-marker{display:none}
     <h3 class="sub">Por jogador · GM/GS = golos marcados/sofridos com ele em campo</h3>
     <div class="tw"><table id="statTable"></table></div>
     <div class="btnrow">
-      <button class="btn" id="btnCsv">Exportar CSV</button>
+      <button class="btn" id="btnCsv">Copiar para Excel</button>
       <button class="btn sec" id="btnCopy">Copiar resumo</button>
       <button class="btn sec" id="btnHl">⭐ Momento alto</button>
     </div>
@@ -263,6 +266,14 @@ details.card>summary::-webkit-details-marker{display:none}
     <button class="close" id="sClose">Fechar</button>
   </div>
 </div>
+<div class="sheet-bg" id="dlgBg">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+    <h3 id="dTitle"></h3>
+    <div class="sub" id="dMsg"></div>
+    <textarea id="dText" rows="8" readonly hidden></textarea>
+    <div class="dbtns"><button class="btn sec" id="dCancel">Cancelar</button><button class="btn" id="dOk">Confirmar</button></div>
+  </div>
+</div>
 <div class="toast" id="toast"><span id="toastMsg"></span><button id="toastUndo">Anular</button></div>
 
 <script>
@@ -300,12 +311,13 @@ const periodName=p=>S.periods==4?p+'.º período':S.periods==1?'Jogo':p+'.ª par
 const periodShort=p=>S.periods==1?'':(S.periods==4?p+'P ':p+'ª ');
 const playerTime=(p,t=now())=>p.secs+(p.onField&&p.enteredAt!=null?t-p.enteredAt:0);
 
-function toggleClock(){
+async function toggleClock(){
   const t=now();
   if(S.clock.running){S.clock.base=t;S.clock.running=false}
   else{
     if(!S.started){
-      if(!S.players.some(p=>p.onField)&&S.players.length&&!confirm('Ainda não carregaste em IN em nenhum titular. Iniciar mesmo assim?'))return;
+      if(!S.players.some(p=>p.onField)&&S.players.length&&!await ask('Iniciar sem titulares?','Ainda não carregaste em IN em nenhum jogador.','Iniciar'))return;
+      if(S.started)return;
       S.started=true;
       S.players.forEach(p=>{if(p.onField)p.enteredAt=t});
       addEvent({type:'per',team:'us',note:periodName(S.period)},t);
@@ -314,16 +326,16 @@ function toggleClock(){
   }
   save();renderAll();
 }
-function nextPeriod(){
+async function nextPeriod(){
   if(!S.started){toast('Inicia o jogo primeiro');return}
   if(S.period>=S.periods){
     if(S.ended){$('resumo').scrollIntoView({behavior:'smooth'});return}
-    if(!confirm('Terminar o jogo? O relógio para e vais para o resumo final.'))return;
+    if(!await ask('Terminar o jogo?','O relógio para e vais para o resumo final.','Terminar jogo'))return;
     const t=now();S.clock.base=t;S.clock.running=false;S.ended=true;
     addEvent({type:'per',team:'us',note:'Fim do jogo'},t);
     save();renderAll();$('resumo').scrollIntoView({behavior:'smooth'});return;
   }
-  if(!confirm('Terminar '+periodName(S.period)+' e passar à seguinte? O relógio fica em pausa.'))return;
+  if(!await ask('Terminar '+periodName(S.period)+'?','Passa à parte seguinte com o relógio em pausa. As faltas acumuladas recomeçam.','Próxima parte'))return;
   const t=now();S.clock.base=t;S.clock.running=false;
   S.period++;S.periodStart[S.period]=t;
   addEvent({type:'per',team:'us',note:periodName(S.period)},t);
@@ -529,7 +541,7 @@ setInterval(()=>{if(S.clock.running)tick()},500);
 /* ---------- cliques ---------- */
 $('btnClock').onclick=toggleClock;
 $('btnPeriod').onclick=nextPeriod;
-document.addEventListener('click',e=>{
+document.addEventListener('click',async e=>{
   const t=e.target.closest('button');if(!t)return;
   const d=t.dataset;
   if(d.io){toggleIO(d.io);return}
@@ -548,7 +560,7 @@ document.addEventListener('click',e=>{
   if(d.sort){const k=d.sort;if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(k==='name'||k==='num')?1:-1}renderResumo();return}
   if(d.rm){
     const p=pById(d.rm);
-    if(S.events.some(x=>x.pid===p.id)&&!confirm(pLabel(p)+' tem registos neste jogo. Remover mesmo assim?'))return;
+    if(S.events.some(x=>x.pid===p.id)&&!await ask('Remover '+pLabel(p)+'?','Este jogador tem registos neste jogo, que também são apagados.','Remover',true))return;
     S.players=S.players.filter(x=>x!==p);S.events=S.events.filter(x=>x.pid!==p.id);save();renderAll();return;
   }
 });
@@ -568,25 +580,22 @@ $('addForm').onsubmit=e=>{
   S.players.push({id:uid(),num:+num,name,onField:false,enteredAt:null,secs:0,sentOff:false});
   $('aNum').value='';$('aName').value='';$('aNum').focus();save();renderAll();
 };
-$('btnNewGame').onclick=()=>{
-  if(!confirm('Começar um novo jogo? Os registos e tempos são apagados; o plantel mantém-se.'))return;
+$('btnNewGame').onclick=async()=>{
+  if(!await ask('Começar um novo jogo?','Os registos e tempos são apagados; o plantel mantém-se.','Novo jogo',true))return;
   S={...blank(),team:S.team,opp:S.opp,periods:S.periods,len:S.len,players:S.players.map(p=>({...p,onField:false,secs:0,enteredAt:null,sentOff:false}))};
   save();renderAll();toast('Novo jogo pronto');
 };
-$('btnReset').onclick=()=>{if(!confirm('Apagar plantel, jogo e todos os registos?'))return;S=blank();save();renderAll()};
+$('btnReset').onclick=async()=>{if(!await ask('Apagar tudo?','Apaga o plantel, o jogo e todos os registos.','Apagar tudo',true))return;S=blank();save();renderAll()};
 
 /* ---------- exportar ---------- */
-const csvCell=v=>'"'+String(v).replace(/"/g,'""')+'"';
+const csvCell=v=>String(v).replace(/[\t\n]/g,' ');
 $('btnCsv').onclick=()=>{
   const names={'🟨':'Amarelos','🟥':'Vermelhos','⭐':'Momentos altos'};
-  let out=COLS.map(c=>csvCell(names[c[1]]||c[1])).join(';')+'\n';
-  out+=statsRows().sort((a,b)=>a.num-b.num).map(r=>COLS.map(([k])=>csvCell(k==='min'?fmt(r[k]):k==='pm'?sign(r[k]):r[k])).join(';')).join('\n');
-  out+='\n\n'+['Minuto','Parte','Evento','Jogador/Equipa','Momento alto','Nota','Em campo'].map(csvCell).join(';')+'\n';
-  out+=S.events.map(e=>{const p=pById(e.pid);return [fmtMin(e.pt),e.period,evLabel(e),p?pLabel(p):e.team==='opp'?S.opp:S.team,e.hl?'Sim':'',e.note||'',e.type==='g'?lineupText(e):''].map(csvCell).join(';')}).join('\n');
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob(['﻿'+out],{type:'text/csv;charset=utf-8'}));
-  a.download=`scouting_${S.team}_vs_${S.opp}_${new Date().toISOString().slice(0,10)}.csv`.replace(/\s+/g,'-');
-  a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  let out=COLS.map(c=>csvCell(names[c[1]]||c[1])).join('\t')+'\n';
+  out+=statsRows().sort((a,b)=>a.num-b.num).map(r=>COLS.map(([k])=>csvCell(k==='min'?fmt(r[k]):k==='pm'?sign(r[k]):r[k])).join('\t')).join('\n');
+  out+='\n\n'+['Minuto','Parte','Evento','Jogador/Equipa','Momento alto','Nota','Em campo'].map(csvCell).join('\t')+'\n';
+  out+=S.events.map(e=>{const p=pById(e.pid);return [fmtMin(e.pt),e.period,evLabel(e),p?pLabel(p):e.team==='opp'?S.opp:S.team,e.hl?'Sim':'',e.note||'',e.type==='g'?lineupText(e):''].map(csvCell).join('\t')}).join('\n');
+  copyText(out,'Tabela copiada · cola no Excel ou Google Sheets','Tabela para Excel');
 };
 $('btnCopy').onclick=async()=>{
   const [a,b]=score();
@@ -597,8 +606,29 @@ $('btnCopy').onclick=async()=>{
   statsRows().sort((x,y)=>x.num-y.num).forEach(r=>{t+=`#${r.num} ${r.name}: ${fmt(r.min)} · ${r.g}⚽ · ${sign(r.pm)} (${r.gm}/${r.gs}) · ${r.fc}/${r.fs}${r.y?' · '+r.y+'🟨':''}${r.r?' · 🟥':''}\n`});
   const hl=S.events.filter(e=>e.hl);
   if(hl.length){t+='\nMOMENTOS ALTOS\n';hl.forEach(e=>{const p=pById(e.pid);t+=`${evTime(e)} ${evLabel(e)}${p?' – '+pLabel(p):e.team==='opp'?' – '+S.opp:''}${e.note?' ('+e.note+')':''}\n`})}
-  try{await navigator.clipboard.writeText(t);toast('Resumo copiado')}catch(e){prompt('Copia o resumo:',t)}
+  copyText(t,'Resumo copiado','Resumo do jogo');
 };
+
+/* ---------- janela de confirmação (sem confirm()/prompt()) ---------- */
+let dlgResolve=null;
+function ask(title,msg,ok='Confirmar',danger=false){
+  $('dTitle').textContent=title;$('dMsg').textContent=msg;$('dText').hidden=true;
+  $('dOk').textContent=ok;$('dOk').className='btn'+(danger?' danger':'');$('dOk').hidden=false;$('dCancel').textContent='Cancelar';
+  $('dlgBg').classList.add('on');$('dOk').focus();
+  return new Promise(r=>{dlgResolve=r});
+}
+function showText(title,msg,text){
+  $('dTitle').textContent=title;$('dMsg').textContent=msg;$('dText').hidden=false;$('dText').value=text;
+  $('dOk').hidden=true;$('dCancel').textContent='Fechar';$('dlgBg').classList.add('on');
+  $('dText').focus();$('dText').select();
+}
+function closeDlg(v){$('dlgBg').classList.remove('on');if(dlgResolve){dlgResolve(v);dlgResolve=null}}
+$('dOk').onclick=()=>closeDlg(true);$('dCancel').onclick=()=>closeDlg(false);
+$('dlgBg').addEventListener('click',e=>{if(e.target.id==='dlgBg')closeDlg(false)});
+async function copyText(text,okMsg,title){
+  try{await navigator.clipboard.writeText(text);toast(okMsg)}
+  catch(e){showText(title,'Seleciona o texto e copia (Ctrl+C ou manter premido).',text)}
+}
 
 /* ---------- aviso + anular ---------- */
 let tt;
@@ -613,7 +643,7 @@ $('toastUndo').onclick=()=>{
   restored.clock=S.clock;restored.period=S.period;restored.periodStart=S.periodStart;restored.started=S.started;
   S=restored;undoSnap=null;save();renderAll();$('toast').classList.remove('on');
 };
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSheet();closeDlg(false)}});
 
 renderAll();
 })();
