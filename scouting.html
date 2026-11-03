@@ -34,6 +34,14 @@ header{background:linear-gradient(135deg,#102f4d,#1d5c8b);color:#fff;padding:10p
 .cbtn.stop{background:#f2c230;color:#3a2c00}
 .cbtn.ghost{background:rgba(255,255,255,.16);color:#fff;padding:10px}
 
+.fouls{display:flex;gap:8px;max-width:900px;margin:8px auto 0;font-size:.75rem;font-weight:700;color:#cde6f5}
+.fteam{flex:1;min-width:0;display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.1);border-radius:10px;padding:5px 8px}
+.fteam .fn{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fdots{display:flex;gap:3px}.fdots i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.25)}
+.fdots i.on{background:#f2c230}
+.fteam b{font-size:1rem;color:#fff;font-variant-numeric:tabular-nums}
+.fteam.warn{background:#f2c230;color:#3a2c00}.fteam.warn b{color:#3a2c00}.fteam.warn .fdots i.on{background:#3a2c00}
+.fteam.over{background:var(--red);color:#fff}.fteam.over b{color:#fff}.fteam.over .fdots i.on{background:#fff}
 main{max-width:900px;margin:0 auto;padding:10px 8px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 8px;margin-bottom:10px}
 h2{font-size:.95rem;margin:2px 2px 10px;color:var(--navy);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
@@ -68,7 +76,7 @@ h2 .hint{font-size:.75rem;color:var(--muted);font-weight:600}
 .cnt small{font-size:.58rem;font-weight:800;color:var(--muted);text-transform:uppercase}
 .cnt.zero{color:var(--muted)}
 .cnt.f{border-color:rgba(227,138,43,.5)}
-.cnt.fj{border-color:rgba(122,92,199,.5)}
+.cnt.bf{border-color:rgba(90,116,134,.5)}
 .cardbtn{height:44px;border-radius:10px;border:2px solid transparent;display:grid;place-items:center;padding:0;background:var(--card)}
 .cardbtn i{display:block;width:16px;height:24px;border-radius:3px;box-shadow:0 1px 2px rgba(0,0,0,.25)}
 .cardbtn.y i{background:var(--yellow)}.cardbtn.r i{background:var(--red)}
@@ -141,7 +149,7 @@ details.card>summary::-webkit-details-marker{display:none}
 .sheet .sub{color:var(--muted);font-size:.85rem;margin-bottom:12px}
 .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .act{border:0;border-radius:12px;padding:14px 10px;font-weight:800;text-align:left;color:#fff}
-.a-fs{background:#3f8fb8}.a-bf{background:#5a7486}.a-g{background:var(--green)}.a-hl{background:#b78a1f}
+.a-fs{background:#3f8fb8}.a-hl{grid-column:1/-1}.a-g{background:var(--green)}.a-hl{background:#b78a1f}
 .sheet textarea{width:100%;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:10px;margin-top:10px}
 .close{width:100%;margin-top:10px;border:1px solid var(--line);background:transparent;border-radius:12px;padding:12px;font-weight:800}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--navy);color:var(--paper);padding:10px 14px;border-radius:12px;font-weight:700;z-index:60;opacity:0;transition:.25s;display:flex;gap:12px;align-items:center;max-width:92vw}
@@ -166,6 +174,7 @@ details.card>summary::-webkit-details-marker{display:none}
     <button class="cbtn ghost" id="btnPeriod" title="Próxima parte">⏭</button>
     <div class="score"><b id="hScore">0 – 0</b><span id="hTeams">Nós vs Adversário</span></div>
   </div>
+  <div class="fouls" id="fouls"></div>
 </header>
 
 <main>
@@ -179,7 +188,7 @@ details.card>summary::-webkit-details-marker{display:none}
     <h2 id="oppTitle">Adversário</h2>
     <div class="opp">
       <button class="obtn" data-opp="fc"><b id="o-fc">0</b>Faltas</button>
-      <button class="obtn" data-opp="fj"><b id="o-fj">0</b>Foras</button>
+      <button class="obtn" data-opp="bf"><b id="o-bf">0</b>Foras</button>
       <button class="obtn" data-opp="y"><b id="o-y">0</b>🟨</button>
       <button class="obtn" data-opp="r"><b id="o-r">0</b>🟥</button>
       <button class="obtn" data-opp="g"><b id="o-g">0</b>Golos</button>
@@ -218,6 +227,7 @@ details.card>summary::-webkit-details-marker{display:none}
       <button class="btn" type="submit">Adicionar</button>
     </form>
     <ul class="roster" id="roster"></ul>
+    <p class="pmeta">Futsal: 2 partes de 20 min (tempo útil, pausa o relógio quando a bola para). As faltas acumuladas no topo recomeçam a cada parte.</p>
     <p class="pmeta">Antes de iniciar o relógio, carrega em <b>IN</b> nos titulares. Durante o jogo, <b>IN</b>/<b>OUT</b> regista a entrada e a saída e conta o tempo de cada um.</p>
     <div class="btnrow">
       <button class="btn sec" id="btnNewGame">Novo jogo (manter plantel)</button>
@@ -232,7 +242,6 @@ details.card>summary::-webkit-details-marker{display:none}
     <div class="sub" id="sSub"></div>
     <div class="acts">
       <button class="act a-fs" data-act="fs">Falta sofrida</button>
-      <button class="act a-bf" data-act="bf">Bola fora</button>
       <button class="act a-g" data-act="g">⚽ Golo</button>
       <button class="act a-hl" data-act="hl">⭐ Momento alto</button>
     </div>
@@ -250,7 +259,6 @@ const $=id=>document.getElementById(id);
 const TYPES={
   fc:{label:'Falta cometida',color:'var(--orange)'},
   fs:{label:'Falta sofrida',color:'#3f8fb8'},
-  fj:{label:'Fora de jogo',color:'var(--purple)'},
   bf:{label:'Bola fora',color:'#5a7486'},
   y:{label:'Cartão amarelo',color:'var(--yellow)'},
   r:{label:'Cartão vermelho',color:'var(--red)'},
@@ -262,7 +270,7 @@ const TYPES={
 };
 
 const blank=()=>({
-  team:'A minha equipa',opp:'Adversário',periods:2,len:45,
+  team:'A minha equipa',opp:'Adversário',periods:2,len:20,
   players:[],events:[],
   clock:{running:false,base:0,since:0},period:1,periodStart:{1:0},started:false
 });
@@ -329,6 +337,10 @@ function logAction(type,pid,team,note=''){
     addEvent({type:'r',pid,team,note:'Segundo amarelo'},t);
     msg='2.º amarelo → vermelho · '+pLabel(p);
   }
+  if(type==='fc'){
+    const n=S.events.filter(e=>e.team===team&&e.type==='fc'&&e.period===S.period).length;
+    if(n===5)msg+=' · 5.ª falta acumulada!';else if(n>=6)msg+=' · '+n+'.ª falta → livre de 10 m';
+  }
   if(p&&(type==='r'||(type==='y'&&count(pid,'y')>=2))&&p.onField)sendOff(p,t);
   else if(p&&type==='r')p.sentOff=true;
   save();renderAll();flashRow(pid);toast(msg,true);
@@ -373,14 +385,14 @@ const byNum=(a,b)=>a.num-b.num;
 const score=()=>[S.events.filter(e=>e.type==='g'&&e.team==='us').length,oppCount('g')];
 
 function rowHtml(p){
-  const fc=count(p.id,'fc'),fj=count(p.id,'fj'),y=count(p.id,'y'),r=count(p.id,'r');
+  const fc=count(p.id,'fc'),bf=count(p.id,'bf'),y=count(p.id,'y'),r=count(p.id,'r');
   const io=p.sentOff?`<button class="io exp" disabled>EXP.</button>`:p.onField?`<button class="io out" data-io="${p.id}">OUT</button>`:`<button class="io in" data-io="${p.id}">IN</button>`;
   let flags='';for(let k=0;k<Math.min(y,2);k++)flags+='<i class="flag y"></i>';if(r)flags+='<i class="flag r"></i>';
   const cls=p.sentOff?'row sent off':p.onField?'row on':'row off';
   return `<div class="${cls}" id="row-${p.id}">${io}
     <div class="who"><span class="num">${p.num}</span><div class="nm"><div class="pname"><span class="pn">${p.num}</span>${esc(p.name)}${flags}</div><div class="ptime" data-time="${p.id}">${fmt(playerTime(p))}</div></div></div>
     <button class="cnt f${fc?'':' zero'}" data-a="fc" data-p="${p.id}" aria-label="Falta cometida">${fc}<small>falta</small></button>
-    <button class="cnt fj${fj?'':' zero'}" data-a="fj" data-p="${p.id}" aria-label="Fora de jogo">${fj}<small>fora</small></button>
+    <button class="cnt bf${bf?'':' zero'}" data-a="bf" data-p="${p.id}" aria-label="Bola fora">${bf}<small>fora</small></button>
     <button class="cardbtn y${y?' has':''}" data-a="y" data-p="${p.id}" aria-label="Cartão amarelo" ${r?'disabled':''}><i></i></button>
     <button class="cardbtn r${r?' has':''}" data-a="r" data-p="${p.id}" aria-label="Cartão vermelho" ${r?'disabled':''}><i></i></button>
     <button class="more" data-more="${p.id}" aria-label="Mais ações">⋯</button></div>`;
@@ -394,23 +406,34 @@ function renderHeader(){
   const btn=$('btnClock');
   btn.textContent=S.clock.running?'⏸ Pausa':S.started?'▶ Retomar':'▶ Iniciar';
   btn.className='cbtn'+(S.clock.running?' stop':'');
+  renderFouls();
   $('btnPeriod').style.visibility=S.started&&S.period<S.periods?'visible':'hidden';
   tick();
+}
+function renderFouls(){
+  const f=team=>S.events.filter(e=>e.team===team&&e.type==='fc'&&e.period===S.period).length;
+  const box=(name,n)=>{
+    const cls=n>=6?' over':n===5?' warn':'';
+    const tip=n>=5?(n>=6?'Livre de 10 m':'Próxima: livre de 10 m'):'';
+    return `<div class="fteam${cls}" title="${tip}"><span class="fn">${esc(name)}</span><span class="fdots">${[1,2,3,4,5].map(i=>`<i class="${i<=n?'on':''}"></i>`).join('')}</span><b>${n}</b></div>`;
+  };
+  $('fouls').innerHTML=box(S.team,f('us'))+box(S.opp,f('opp'));
+  $('fouls').title='Faltas acumuladas · '+periodName(S.period);
 }
 function renderList(){
   const ps=S.players.slice().sort(byNum);
   $('list').innerHTML=ps.length?ps.map(rowHtml).join(''):'<div class="empty">Ainda não há jogadores. Abre <b>Configurar jogo e plantel</b> no fim da página.</div>';
   $('onCount').textContent=ps.filter(p=>p.onField).length+' em campo · '+ps.filter(p=>!p.onField&&!p.sentOff).length+' no banco';
   $('oppTitle').textContent=S.opp;
-  ['fc','fj','y','r','g'].forEach(k=>$('o-'+k).textContent=oppCount(k));
+  ['fc','bf','y','r','g'].forEach(k=>$('o-'+k).textContent=oppCount(k));
 }
 
 let filter='all',showAll=false;
-const FILTERS=[['all','Tudo'],['hl','⭐ Altos'],['f','Faltas'],['fj','Foras'],['c','Cartões'],['s','IN/OUT']];
+const FILTERS=[['all','Tudo'],['hl','⭐ Altos'],['f','Faltas'],['bf','Foras'],['c','Cartões'],['s','IN/OUT']];
 function matchFilter(e){
   switch(filter){
     case 'all':return true;case 'hl':return e.hl;
-    case 'f':return e.type==='fc'||e.type==='fs';case 'fj':return e.type==='fj'||e.type==='bf';
+    case 'f':return e.type==='fc'||e.type==='fs';case 'bf':return e.type==='bf';
     case 'c':return e.type==='y'||e.type==='r';case 's':return e.type==='in'||e.type==='out';
   }
 }
@@ -430,18 +453,18 @@ function renderTimeline(){
 }
 
 let sortKey='num',sortDir=1;
-const COLS=[['num','N.º'],['name','Jogador'],['min','Tempo'],['fc','Faltas c.'],['fs','Faltas s.'],['fj','Fora jogo'],['bf','Bola fora'],['y','🟨'],['r','🟥'],['g','⚽'],['hl','⭐']];
+const COLS=[['num','N.º'],['name','Jogador'],['min','Tempo'],['fc','Faltas c.'],['fs','Faltas s.'],['bf','Foras'],['y','🟨'],['r','🟥'],['g','⚽'],['hl','⭐']];
 function statsRows(){
   const t=now();
   return S.players.map(p=>({p,num:p.num,name:p.name,min:playerTime(p,t),
-    fc:count(p.id,'fc'),fs:count(p.id,'fs'),fj:count(p.id,'fj'),bf:count(p.id,'bf'),y:count(p.id,'y'),r:count(p.id,'r'),g:count(p.id,'g'),
+    fc:count(p.id,'fc'),fs:count(p.id,'fs'),bf:count(p.id,'bf'),y:count(p.id,'y'),r:count(p.id,'r'),g:count(p.id,'g'),
     hl:S.events.filter(e=>e.pid===p.id&&e.hl).length}));
 }
 function renderResumo(){
   const evs=S.events,c=(team,types)=>evs.filter(e=>e.team===team&&types.includes(e.type)).length;
   const [a,b]=score();
-  const k=[['Resultado',a+'–'+b],['Faltas c.',c('us',['fc'])],['Faltas s.',c('us',['fs'])+c('opp',['fc'])],['Foras nós',c('us',['fj'])],
-    ['Foras eles',c('opp',['fj'])],['Cartões nós',c('us',['y','r'])],['Cartões eles',c('opp',['y','r'])],['Altos',evs.filter(e=>e.hl).length]];
+  const k=[['Resultado',a+'–'+b],['Faltas c.',c('us',['fc'])],['Faltas s.',c('us',['fs'])+c('opp',['fc'])],['Foras nós',c('us',['bf'])],
+    ['Foras eles',c('opp',['bf'])],['Cartões nós',c('us',['y','r'])],['Cartões eles',c('opp',['y','r'])],['Altos',evs.filter(e=>e.hl).length]];
   $('kpis').innerHTML=k.map(([l,v])=>`<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('');
   const rows=statsRows().sort((x,y)=>{const A=x[sortKey],B=y[sortKey];return (typeof A==='string'?A.localeCompare(B):A-B)*sortDir||x.num-y.num});
   $('statTable').innerHTML='<thead><tr>'+COLS.map(([k,l])=>`<th data-sort="${k}">${l}${sortKey===k?(sortDir<0?' ↓':' ↑'):''}</th>`).join('')+'</tr></thead><tbody>'+
@@ -530,7 +553,7 @@ $('btnCsv').onclick=()=>{
 $('btnCopy').onclick=async()=>{
   const [a,b]=score();
   let t=`${S.team} ${a}–${b} ${S.opp}\n\nJOGADORES (tempo · faltas c/s · foras · cartões)\n`;
-  statsRows().sort((x,y)=>x.num-y.num).forEach(r=>{t+=`#${r.num} ${r.name}: ${fmt(r.min)} · ${r.fc}/${r.fs} · ${r.fj}${r.y?' · '+r.y+'🟨':''}${r.r?' · 🟥':''}${r.g?' · '+r.g+'⚽':''}\n`});
+  statsRows().sort((x,y)=>x.num-y.num).forEach(r=>{t+=`#${r.num} ${r.name}: ${fmt(r.min)} · ${r.fc}/${r.fs} · ${r.bf}${r.y?' · '+r.y+'🟨':''}${r.r?' · 🟥':''}${r.g?' · '+r.g+'⚽':''}\n`});
   const hl=S.events.filter(e=>e.hl);
   if(hl.length){t+='\nMOMENTOS ALTOS\n';hl.forEach(e=>{const p=pById(e.pid);t+=`${evTime(e)} ${TYPES[e.type].label}${p?' – '+pLabel(p):e.team==='opp'?' – '+S.opp:''}${e.note?' ('+e.note+')':''}\n`})}
   try{await navigator.clipboard.writeText(t);toast('Resumo copiado')}catch(e){prompt('Copia o resumo:',t)}
