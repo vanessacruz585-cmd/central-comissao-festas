@@ -73,6 +73,18 @@ td.pos{color:var(--green);font-weight:900}td.neg{color:var(--red);font-weight:90
 .minirow .chip{padding:4px 10px}
 .bulk{width:100%;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:10px;margin-top:6px;min-height:150px}
 .lbl{display:block;font-size:.75rem;font-weight:800;color:var(--navy);margin-top:14px}
+.alerts{display:flex;flex-direction:column;gap:6px;max-width:900px;margin:8px auto 0}
+.alerts:empty{display:none}
+.alert{display:flex;align-items:center;gap:8px;border-radius:10px;padding:7px 10px;font-weight:800;font-size:.85rem;background:var(--red);color:#fff}
+.alert.to{background:#e6b64a;color:#3a2c00}
+.alert .cd{margin-left:auto;font-size:1.15rem;font-variant-numeric:tabular-nums}
+.alert button{border:0;background:rgba(255,255,255,.25);color:inherit;border-radius:8px;padding:4px 8px;font-weight:800;font-size:.75rem}
+.fteam .tt{font-size:.7rem;font-weight:900;border:1px solid currentColor;border-radius:5px;padding:0 4px;opacity:.9}
+.tos{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.tobtn{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 8px;font-weight:800;font-size:.85rem;text-align:left;display:flex;justify-content:space-between;gap:6px;align-items:center;min-width:0}
+.tobtn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tobtn b{font-variant-numeric:tabular-nums;color:var(--muted)}
+.tobtn.used b{color:var(--red)}
 main{max-width:900px;margin:0 auto;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:#102f4d}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 6px;margin-bottom:10px}
@@ -210,6 +222,7 @@ details.card>summary::-webkit-details-marker{display:none}
     <div class="score"><b id="hScore">0 – 0</b><span id="hTeams">Nós vs Adversário</span></div>
   </div>
   <div class="fouls" id="fouls"></div>
+  <div class="alerts" id="alerts" aria-live="polite"></div>
 </header>
 
 <main>
@@ -233,12 +246,17 @@ details.card>summary::-webkit-details-marker{display:none}
   </section>
 
   <section class="card">
-    <h2 id="oppTitle">Adversário</h2>
+    <h2><span id="oppTitle">Adversário</span></h2>
     <div class="opp">
       <button class="obtn" data-opp="fc"><b id="o-fc">0</b>Faltas</button>
       <button class="obtn" data-opp="y"><b id="o-y">0</b>🟨</button>
       <button class="obtn" data-opp="r"><b id="o-r">0</b>🟥</button>
       <button class="obtn" data-opp="g"><b id="o-g">0</b>Golo sofrido</button>
+    </div>
+    <h3 class="sub">Desconto de tempo · 1 por parte</h3>
+    <div class="tos">
+      <button class="tobtn" data-to="us"><span id="toUsName">Nós</span><b id="toUs">0/1</b></button>
+      <button class="tobtn" data-to="opp"><span id="toOppName">Adversário</span><b id="toOpp">0/1</b></button>
     </div>
   </section>
 
@@ -327,13 +345,15 @@ const TYPES={
   hl:{label:'Momento alto',color:'#b78a1f'},
   in:{label:'Entrou',color:'var(--green)'},
   out:{label:'Saiu',color:'var(--muted)'},
-  per:{label:'Início',color:'var(--blue)'}
+  per:{label:'Início',color:'var(--blue)'},
+  to:{label:'Desconto de tempo',color:'#e6b64a'},
+  pe:{label:'Fim da inferioridade',color:'var(--muted)'}
 };
 
 const blank=()=>({
   team:'A minha equipa',opp:'Adversário',periods:2,len:20,
   players:[],events:[],
-  clock:{running:false,base:0,since:0},period:1,periodStart:{1:0},started:false
+  clock:{running:false,base:0,since:0},period:1,periodStart:{1:0},started:false,pens:[],toUntil:0,toTeam:null
 });
 let S;
 try{S=JSON.parse(localStorage.getItem(KEY))||blank()}catch(e){S=blank()}
@@ -383,7 +403,16 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 function addEvent(e,t=now()){
   const ev={id:uid(),t,period:S.period,pt:t-(S.periodStart[S.period]||0),hl:e.type==='hl'||e.type==='g'||e.type==='r',...e};
   if(ev.type==='g'){ev.lineup=S.players.filter(p=>p.onField).sort(byNum).map(p=>p.id);if(ev.pid&&!ev.lineup.includes(ev.pid))ev.lineup.push(ev.pid)}
-  S.events.push(ev);return ev;
+  S.events.push(ev);
+  if(!S.pens)S.pens=[];
+  if(ev.type==='r')S.pens.push({id:uid(),evId:ev.id,team:ev.team,start:t,done:false});
+  if(ev.type==='g'){
+    const other=ev.team==='us'?'opp':'us';
+    const p=S.pens.find(x=>!x.done&&x.team===other);
+    if(p){p.done=true;S.events.push({id:uid(),t,period:S.period,pt:ev.pt,type:'pe',team:other,note:'Golo de '+(ev.team==='us'?S.team:S.opp)+' · pode completar',hl:false});
+      setTimeout(()=>toast((other==='us'?S.team:S.opp)+' já pode completar (golo sofrido)'),50)}
+  }
+  return ev;
 }
 const evTime=e=>periodShort(e.period)+fmtMin(e.pt);
 const pById=id=>S.players.find(p=>p.id===id);
@@ -485,12 +514,13 @@ function renderHeader(){
 }
 function renderFouls(){
   const f=team=>S.events.filter(e=>e.team===team&&e.type==='fc'&&e.period===S.period).length;
-  const box=(name,n)=>{
+  const tUsed=team=>S.events.some(e=>e.team===team&&e.type==='to'&&e.period===S.period);
+  const box=(name,n,team)=>{
     const cls=n>=6?' over':n===5?' warn':'';
     const tip=n>=5?(n>=6?'Livre de 10 m':'Próxima: livre de 10 m'):'';
-    return `<div class="fteam${cls}" title="${tip}"><span class="fn">${esc(name)}</span><span class="fdots">${[1,2,3,4,5].map(i=>`<i class="${i<=n?'on':''}"></i>`).join('')}</span><b>${n}</b></div>`;
+    return `<div class="fteam${cls}" title="${tip}"><span class="fn">${esc(name)}</span>${tUsed(team)?'<span class="tt" title="Desconto de tempo usado">DT</span>':''}<span class="fdots">${[1,2,3,4,5].map(i=>`<i class="${i<=n?'on':''}"></i>`).join('')}</span><b>${n}</b></div>`;
   };
-  $('fouls').innerHTML=box(S.team,f('us'))+box(S.opp,f('opp'));
+  $('fouls').innerHTML=box(S.team,f('us'),'us')+box(S.opp,f('opp'),'opp');
   $('fouls').title='Faltas acumuladas · '+periodName(S.period);
 }
 const isCalled=p=>p.called!==false;
@@ -514,6 +544,10 @@ function renderList(){
   $('onCount').textContent=ps.filter(p=>p.onField).length+' em campo · '+ps.filter(p=>!p.onField&&!p.sentOff).length+' no banco';
   $('oppTitle').textContent=S.opp;
   ['fc','y','r','g'].forEach(k=>$('o-'+k).textContent=oppCount(k));
+  [['us','toUs','toUsName',S.team],['opp','toOpp','toOppName',S.opp]].forEach(([tm,id,nid,nm])=>{
+    const n=S.events.filter(e=>e.team===tm&&e.type==='to'&&e.period===S.period).length;
+    $(id).textContent=n+'/1';$(id).parentElement.classList.toggle('used',n>0);$(nid).textContent=nm;
+  });
 }
 
 let filter='all',showAll=false;
@@ -579,6 +613,43 @@ function renderSetup(){
 }
 function renderAll(){renderHeader();renderList();renderTimeline();renderResumo();renderSetup()}
 
+const PEN=120,TO=60;
+function renderAlerts(){
+  const t=now(),pens=(S.pens||[]).filter(p=>!p.done);
+  let h='';
+  pens.forEach(p=>{
+    const left=PEN-(t-p.start),nm=p.team==='us'?S.team:S.opp;
+    h+=`<div class="alert">🟥 ${esc(nm)} em inferioridade<span class="cd">${fmt(Math.ceil(left))}</span></div>`;
+  });
+  const tl=(S.toUntil||0)-Date.now();
+  if(tl>0)h+=`<div class="alert to">⏱ Desconto de tempo · ${esc(S.toTeam==='us'?S.team:S.opp)}<span class="cd">${fmt(Math.ceil(tl/1000))}</span><button data-toend="1">Fechar</button></div>`;
+  if($('alerts').innerHTML!==h)$('alerts').innerHTML=h;
+}
+function checkPens(){
+  const t=now();let changed=false;
+  (S.pens||[]).forEach(p=>{
+    if(!p.done&&t-p.start>=PEN){
+      p.done=true;changed=true;
+      const nm=p.team==='us'?S.team:S.opp,et=p.start+PEN;
+      S.events.push({id:uid(),t:et,period:S.period,pt:et-(S.periodStart[S.period]||0),type:'pe',team:p.team,note:'2 minutos cumpridos · pode completar',hl:false});
+      toast(nm+' já pode completar (2 min)');
+    }
+  });
+  if(changed){save();renderAll()}
+}
+setInterval(()=>{checkPens();renderAlerts()},500);
+async function timeout(team){
+  const nm=team==='us'?S.team:S.opp;
+  if(!S.started){toast('Inicia o jogo primeiro');return}
+  const used=S.events.some(e=>e.team===team&&e.type==='to'&&e.period===S.period);
+  if(used&&!await ask(nm+' já usou o desconto','Só há 1 desconto de tempo por parte. Registar outro mesmo assim?','Registar'))return;
+  snap();
+  const t=now();
+  if(S.clock.running){S.clock.base=t;S.clock.running=false}
+  addEvent({type:'to',team,note:'Relógio parado'},t);
+  S.toUntil=Date.now()+TO*1000;S.toTeam=team;
+  save();renderAll();renderAlerts();toast('Desconto de tempo · '+nm+' · relógio parado',true);
+}
 function tick(){
   const t=now();
   $('clock').textContent=fmt(t-(S.periodStart[S.period]||0));
@@ -599,12 +670,15 @@ document.addEventListener('click',async e=>{
   if(d.a){logAction(d.a,d.p,'us');return}
   if(d.more){openSheet(d.more);return}
   if(d.opp){logAction(d.opp,null,'opp');return}
+  if(d.to){timeout(d.to);return}
+  if(d.toend){S.toUntil=0;save();renderAlerts();return}
   if(d.star){const ev=S.events.find(x=>x.id===d.star);ev.hl=!ev.hl;save();renderTimeline();renderResumo();return}
   if(d.del){
     const ev=S.events.find(x=>x.id===d.del);
     if(ev.type==='in'||ev.type==='out'){toast('Para corrigir IN/OUT usa "Anular" logo a seguir');return}
     snap();S.events=S.events.filter(x=>x!==ev);
     if(ev.type==='r'&&ev.pid){const p=pById(ev.pid);if(p&&!count(p.id,'r'))p.sentOff=false}
+    if(ev.type==='r')S.pens=(S.pens||[]).filter(x=>x.evId!==ev.id);
     save();renderAll();toast(TYPES[ev.type].label+' apagado',true);return;
   }
   if(d.filter){filter=d.filter;showAll=false;renderTimeline();return}
