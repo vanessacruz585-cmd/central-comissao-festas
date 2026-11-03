@@ -54,6 +54,25 @@ header{background:linear-gradient(135deg,#102f4d,#1d5c8b);color:#fff;padding-blo
 .lineup span.sc{background:var(--green);color:#fff}
 h3.sub{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 2px 8px}
 td.pos{color:var(--green);font-weight:900}td.neg{color:var(--red);font-weight:900}
+.prep{border-color:var(--blue)}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.step{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:start}
+.sn{width:26px;height:26px;border-radius:50%;background:var(--sky);color:var(--navy);font-weight:900;display:grid;place-items:center;font-size:.85rem}
+.step.done .sn{background:var(--green);color:#fff}
+.st{font-weight:800;color:var(--navy);display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.st .hint{font-size:.78rem;color:var(--muted);font-weight:700}
+.st .hint.over{color:var(--red)}
+.callgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;margin-top:8px}
+.call{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px;text-align:left;font-weight:700;display:flex;gap:6px;align-items:center;min-width:0}
+.call b{color:var(--muted);font-variant-numeric:tabular-nums}
+.call span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.call[aria-pressed="true"]{background:var(--navy);color:var(--paper);border-color:var(--navy)}
+.call[aria-pressed="true"] b{color:var(--paper);opacity:.7}
+.linkbtn{border:0;background:transparent;color:var(--blue);font-weight:800;padding:0}
+.minirow{display:flex;gap:6px;margin-top:6px}
+.minirow .chip{padding:4px 10px}
+.bulk{width:100%;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:10px;margin-top:6px;min-height:150px}
+.lbl{display:block;font-size:.75rem;font-weight:800;color:var(--navy);margin-top:14px}
 main{max-width:900px;margin:0 auto;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:#102f4d}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 6px;margin-bottom:10px}
@@ -194,6 +213,19 @@ details.card>summary::-webkit-details-marker{display:none}
 </header>
 
 <main>
+  <section class="card prep" id="prep">
+    <h2>Preparar jogo</h2>
+    <ol class="steps">
+      <li class="step" id="st1"><span class="sn">1</span><div><div class="st">Plantel <span class="hint" id="squadCount"></span></div>
+        <div class="pmeta" id="squadMsg"></div><button class="linkbtn" id="btnEditSquad">Introduzir / editar plantel</button></div></li>
+      <li class="step" id="st2"><span class="sn">2</span><div><div class="st">Convocados para este jogo <span class="hint" id="callCount"></span></div>
+        <div class="minirow" id="callBtns"><button class="chip" id="callAll">Todos</button><button class="chip" id="callNone">Nenhum</button></div>
+        <div class="callgrid" id="callGrid"></div></div></li>
+      <li class="step" id="st3"><span class="sn">3</span><div><div class="st">Titulares <span class="hint" id="startCount"></span></div>
+        <div class="pmeta">Carrega em <b>IN</b> nos 5 que começam e depois em <b>▶ Iniciar</b>. Os restantes convocados ficam no banco.</div></div></li>
+    </ol>
+  </section>
+
   <section class="card">
     <h2>Jogadores <span class="hint" id="onCount"></span></h2>
     <div class="legend"><span>In/Out</span><span>Jogador</span><span>Falta</span><span>Golo</span><span>🟨</span><span>🟥</span><span></span></div>
@@ -232,13 +264,17 @@ details.card>summary::-webkit-details-marker{display:none}
   </section>
 
   <details class="card" id="setup">
-    <summary>Configurar jogo e plantel</summary>
+    <summary>Plantel e configuração do jogo</summary>
     <div class="formrow">
       <div class="field"><label>A minha equipa<input id="fTeam"></label></div>
       <div class="field"><label>Adversário<input id="fOpp"></label></div>
       <div class="field"><label>N.º de partes<select id="fPeriods"><option>2</option><option>4</option><option>3</option><option>1</option></select></label></div>
       <div class="field"><label>Minutos por parte<input id="fLen" type="number" min="1" inputmode="numeric"></label></div>
     </div>
+    <label class="lbl" for="bulk">Plantel completo · um jogador por linha, número e nome</label>
+    <textarea class="bulk" id="bulk" placeholder="1 Rui Santos&#10;4 Tiago&#10;7 Miguel Ferreira&#10;9 André&#10;10 João"></textarea>
+    <div class="btnrow"><button class="btn" id="btnBulk">Adicionar ao plantel</button></div>
+    <span class="lbl">Ou um de cada vez</span>
     <form class="addrow" id="addForm">
       <input id="aNum" type="number" min="0" placeholder="N.º" inputmode="numeric" aria-label="Número">
       <input id="aName" placeholder="Nome do jogador" aria-label="Nome">
@@ -246,7 +282,7 @@ details.card>summary::-webkit-details-marker{display:none}
     </form>
     <ul class="roster" id="roster"></ul>
     <p class="pmeta">Futsal: 2 partes de 20 min (tempo útil, pausa o relógio quando a bola para). As faltas acumuladas no topo recomeçam a cada parte.</p>
-    <p class="pmeta">Antes de iniciar o relógio, carrega em <b>IN</b> nos titulares. Durante o jogo, <b>IN</b>/<b>OUT</b> regista a entrada e a saída e conta o tempo de cada um.</p>
+    <p class="pmeta">Antes de cada jogo escolhe os convocados em <b>Preparar jogo</b> e carrega em <b>IN</b> nos titulares. Durante o jogo, <b>IN</b>/<b>OUT</b> regista a entrada e a saída e conta o tempo de cada um.</p>
     <div class="btnrow">
       <button class="btn sec" id="btnNewGame">Novo jogo (manter plantel)</button>
       <button class="btn danger" id="btnReset">Apagar tudo</button>
@@ -457,9 +493,24 @@ function renderFouls(){
   $('fouls').innerHTML=box(S.team,f('us'))+box(S.opp,f('opp'));
   $('fouls').title='Faltas acumuladas · '+periodName(S.period);
 }
+const isCalled=p=>p.called!==false;
+const called=()=>S.players.filter(isCalled);
+function renderPrep(){
+  $('prep').hidden=S.started;if(S.started)return;
+  const n=S.players.length,c=called().length,st=S.players.filter(p=>p.onField).length;
+  $('squadCount').textContent=n?n+' jogadores':'';
+  $('squadMsg').textContent=n?'Fica guardado para os próximos jogos.':'Ainda vazio. Introduz o plantel completo uma vez.';
+  $('st1').classList.toggle('done',n>0);$('st2').classList.toggle('done',c>0);$('st3').classList.toggle('done',st>0);
+  $('callCount').textContent=c+' / 14';$('callCount').classList.toggle('over',c>14);
+  $('callGrid').innerHTML=n?S.players.slice().sort(byNum).map(p=>`<button class="call" data-call="${p.id}" aria-pressed="${isCalled(p)}"><b>${p.num}</b><span>${esc(p.name)}</span></button>`).join(''):'';
+  $('startCount').textContent=st+' / 5';
+  $('callBtns').hidden=!n;
+}
+function setCalled(p,v){p.called=v;if(!v){p.onField=false}}
 function renderList(){
-  const ps=S.players.slice().sort(byNum);
-  $('list').innerHTML=ps.length?ps.map(rowHtml).join(''):'<div class="empty">Ainda não há jogadores. Abre <b>Configurar jogo e plantel</b> no fim da página.</div>';
+  const ps=called().sort(byNum);
+  $('list').innerHTML=ps.length?ps.map(rowHtml).join(''):'<div class="empty">'+(S.players.length?'Escolhe os convocados em <b>Preparar jogo</b>.':'Começa por introduzir o plantel em <b>Preparar jogo</b>.')+'</div>';
+  renderPrep();
   $('onCount').textContent=ps.filter(p=>p.onField).length+' em campo · '+ps.filter(p=>!p.onField&&!p.sentOff).length+' no banco';
   $('oppTitle').textContent=S.opp;
   ['fc','y','r','g'].forEach(k=>$('o-'+k).textContent=oppCount(k));
@@ -498,7 +549,7 @@ const onFor=(pid,team)=>S.events.filter(e=>e.type==='g'&&e.team===team&&(e.lineu
 const sign=n=>n>0?'+'+n:String(n);
 function statsRows(){
   const t=now();
-  return S.players.map(p=>({p,num:p.num,name:p.name,min:playerTime(p,t),
+  return S.players.filter(p=>isCalled(p)||p.secs>0||S.events.some(e=>e.pid===p.id)).map(p=>({p,num:p.num,name:p.name,min:playerTime(p,t),
     fc:count(p.id,'fc'),fs:count(p.id,'fs'),y:count(p.id,'y'),r:count(p.id,'r'),g:count(p.id,'g'),
     gm:onFor(p.id,'us'),gs:onFor(p.id,'opp'),pm:onFor(p.id,'us')-onFor(p.id,'opp'),
     hl:S.events.filter(e=>e.pid===p.id&&e.hl).length}));
@@ -525,7 +576,6 @@ function renderSetup(){
   if(document.activeElement!==$('fOpp'))$('fOpp').value=S.opp;
   $('fPeriods').value=S.periods;$('fLen').value=S.len;
   $('roster').innerHTML=S.players.slice().sort(byNum).map(p=>`<li><span class="num">${p.num}</span><span class="pname">${esc(p.name)}</span><button class="ibtn" data-rm="${p.id}" aria-label="Remover">✕</button></li>`).join('');
-  if(!S.players.length)$('setup').open=true;
 }
 function renderAll(){renderHeader();renderList();renderTimeline();renderResumo();renderSetup()}
 
@@ -544,6 +594,7 @@ $('btnPeriod').onclick=nextPeriod;
 document.addEventListener('click',async e=>{
   const t=e.target.closest('button');if(!t)return;
   const d=t.dataset;
+  if(d.call){const p=pById(d.call);setCalled(p,!isCalled(p));save();renderAll();return}
   if(d.io){toggleIO(d.io);return}
   if(d.a){logAction(d.a,d.p,'us');return}
   if(d.more){openSheet(d.more);return}
@@ -572,12 +623,33 @@ $('fTeam').addEventListener('input',e=>{S.team=e.target.value.trim()||'A minha e
 $('fOpp').addEventListener('input',e=>{S.opp=e.target.value.trim()||'Adversário';save();renderHeader();$('oppTitle').textContent=S.opp});
 $('fPeriods').onchange=e=>{S.periods=+e.target.value;if(S.period>S.periods)S.period=S.periods;save();renderAll()};
 $('fLen').oninput=e=>{S.len=+e.target.value||S.len;save()};
+$('btnBulk').onclick=()=>{
+  const lines=$('bulk').value.split(/\n/).map(l=>l.trim()).filter(Boolean);
+  let added=0;const bad=[],dup=[];
+  lines.forEach(l=>{
+    const m=l.match(/^#?(\d{1,3})\s*[-.,;:)\t]?\s*(.+)$/);
+    if(!m){bad.push(l);return}
+    const num=+m[1],name=m[2].trim();
+    if(S.players.some(p=>p.num===num)){dup.push(num);return}
+    S.players.push({id:uid(),num,name,called:false,onField:false,enteredAt:null,secs:0,sentOff:false});added++;
+  });
+  save();renderAll();
+  $('bulk').value=bad.join('\n');
+  let msg=added+' jogador'+(added===1?'':'es')+' adicionado'+(added===1?'':'s');
+  if(dup.length)msg+=' · n.º repetido: '+dup.join(', ');
+  if(bad.length)msg+=' · '+bad.length+' linha(s) sem número';
+  toast(msg);
+  if(added)$('prep').scrollIntoView({behavior:'smooth'});
+};
+$('btnEditSquad').onclick=()=>{$('setup').open=true;$('bulk').scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>$('bulk').focus(),300)};
+$('callAll').onclick=()=>{S.players.forEach(p=>setCalled(p,true));save();renderAll()};
+$('callNone').onclick=()=>{S.players.forEach(p=>setCalled(p,false));save();renderAll()};
 $('addForm').onsubmit=e=>{
   e.preventDefault();
   const num=$('aNum').value.trim(),name=$('aName').value.trim();
   if(num===''||!name){toast('Indica o número e o nome');return}
   if(S.players.some(p=>p.num==+num)){toast('Já existe o n.º '+num);return}
-  S.players.push({id:uid(),num:+num,name,onField:false,enteredAt:null,secs:0,sentOff:false});
+  S.players.push({id:uid(),num:+num,name,called:true,onField:false,enteredAt:null,secs:0,sentOff:false});
   $('aNum').value='';$('aName').value='';$('aNum').focus();save();renderAll();
 };
 $('btnNewGame').onclick=async()=>{
