@@ -292,7 +292,7 @@ details.card>summary::-webkit-details-marker{display:none}
       <div class="field"><label>A minha equipa<input id="fTeam"></label></div>
       <div class="field"><label>Adversário<input id="fOpp"></label></div>
       <div class="field"><label>N.º de partes<select id="fPeriods"><option>2</option><option>4</option><option>3</option><option>1</option></select></label></div>
-      <div class="field"><label>Minutos por parte<input id="fLen" type="number" min="1" inputmode="numeric"></label></div>
+      <div class="field"><label>Minutos por parte (referência)<input id="fLen" type="number" min="1" inputmode="numeric"></label></div>
     </div>
     <label class="lbl" for="bulk">Plantel completo · um jogador por linha, número e nome</label>
     <textarea class="bulk" id="bulk" placeholder="1 Rui Santos&#10;4 Tiago&#10;7 Miguel Ferreira&#10;9 André&#10;10 João"></textarea>
@@ -304,7 +304,7 @@ details.card>summary::-webkit-details-marker{display:none}
       <button class="btn" type="submit">Adicionar</button>
     </form>
     <ul class="roster" id="roster"></ul>
-    <p class="pmeta">Futsal: 2 partes de 20 min (tempo útil, pausa o relógio quando a bola para). As faltas acumuladas no topo recomeçam a cada parte.</p>
+    <p class="pmeta">Futsal: 2 partes de 20 min. O relógio corre sempre: não precisas de o parar quando a bola sai. Quando o árbitro terminar a parte, carrega em <b>⏭</b> (ou em <b>🏁</b> no fim do jogo). Usa <b>⏸</b> só em paragens longas, como lesões. As faltas acumuladas recomeçam a cada parte.</p>
     <p class="pmeta">Antes de cada jogo escolhe os convocados em <b>Preparar jogo</b> e carrega em <b>IN</b> nos titulares. Durante o jogo, <b>IN</b>/<b>OUT</b> regista a entrada e a saída e conta o tempo de cada um.</p>
     <div class="btnrow">
       <button class="btn sec" id="btnNewGame">Novo jogo (manter plantel)</button>
@@ -652,7 +652,7 @@ function renderAlerts(){
     h+=`<div class="alert">🟥 ${esc(nm)} em inferioridade<span class="cd">${fmt(Math.ceil(left))}</span></div>`;
   });
   const tl=(S.toUntil||0)-Date.now();
-  if(tl>0)h+=`<div class="alert to">⏱ Desconto de tempo · ${esc(S.toTeam==='us'?S.team:S.opp)}<span class="cd">${fmt(Math.ceil(tl/1000))}</span><button data-toend="1">Fechar</button></div>`;
+  if(tl>0)h+=`<div class="alert to">⏱ Desconto de tempo · ${esc(S.toTeam==='us'?S.team:S.opp)}<span class="cd">${fmt(Math.ceil(tl/1000))}</span><button data-toend="1">▶ Retomar</button></div>`;
   if($('alerts').innerHTML!==h)$('alerts').innerHTML=h;
 }
 function checkPens(){
@@ -701,7 +701,7 @@ document.addEventListener('click',async e=>{
   if(d.more){openSheet(d.more);return}
   if(d.opp){logAction(d.opp,null,'opp');return}
   if(d.to){timeout(d.to);return}
-  if(d.toend){S.toUntil=0;save();renderAlerts();return}
+  if(d.toend){S.toUntil=0;if(S.started&&!S.ended&&!S.clock.running){S.clock.since=Date.now();S.clock.running=true}save();renderAll();renderAlerts();return}
   if(d.star){const ev=S.events.find(x=>x.id===d.star);ev.hl=!ev.hl;save();renderTimeline();renderResumo();return}
   if(d.del){
     const ev=S.events.find(x=>x.id===d.del);
