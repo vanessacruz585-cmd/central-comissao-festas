@@ -254,6 +254,30 @@ details.card>summary::-webkit-details-marker{display:none}
 .toast.on{opacity:1;pointer-events:auto}
 .toast button{border:0;background:transparent;color:#e6b64a;font-weight:900;padding:0}
 
+/* tablet: botões maiores para tocar com o dedo */
+@media(min-width:700px){
+  .legend,.row{grid-template-columns:96px minmax(0,1fr) 76px 76px 64px 64px 48px;gap:8px}
+  .legend{font-size:.72rem}
+  .row{padding:8px 8px}
+  .row+.row{margin-top:6px}
+  .io{height:58px;font-size:1.1rem;border-radius:12px}
+  .cnt,.cardbtn,.more{height:58px;border-radius:12px}
+  .cnt{font-size:1.35rem}.cnt small{font-size:.66rem}
+  .cardbtn i{width:22px;height:32px}
+  .more{font-size:1.7rem}
+  .pname{font-size:1.15rem}.ptime{font-size:.92rem}
+  .obtn{padding:12px 6px;font-size:.9rem}.obtn b{font-size:1.4rem}
+  .tobtn{padding:14px 12px;font-size:.95rem}
+  .alert{font-size:.95rem;padding:9px 12px}.alert .cd{font-size:1.4rem}
+  .clock{font-size:2.4rem}
+}
+/* tablet deitado / ecrã largo: jogadores à esquerda, adversário e linha do tempo à direita */
+@media(min-width:1000px){
+  main,.hrow,.fouls,.alerts{max-width:1280px}
+  .gamegrid{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(0,1fr);gap:12px;align-items:start}
+  .colB{position:sticky;top:calc(var(--hh,170px) + 8px)}
+  .colB .timeline{max-height:calc(100vh - var(--hh,170px) - 300px);overflow:auto}
+}
 @media(max-width:360px){
   .legend,.row{grid-template-columns:46px 1fr 36px 36px 30px 30px 20px;gap:3px}
   .clock{font-size:1.7rem}
@@ -278,6 +302,7 @@ details.card>summary::-webkit-details-marker{display:none}
 
 <main>
   <div class="warnbox" id="storeWarn" hidden></div>
+  <div class="gamegrid"><div class="colA">
   <section class="card prep" id="prep">
     <h2>Preparar jogo</h2>
     <ol class="steps">
@@ -300,6 +325,7 @@ details.card>summary::-webkit-details-marker{display:none}
     <div class="legend"><span>In/Out</span><span>Jogador</span><span>Falta</span><span>Golo</span><span>🟨</span><span>🟥</span><span></span></div>
     <div id="list"></div>
   </section>
+  </div><div class="colB">
 
   <section class="card">
     <h2><span id="oppTitle">Adversário</span></h2>
@@ -322,6 +348,7 @@ details.card>summary::-webkit-details-marker{display:none}
     <ul class="timeline" id="timeline"></ul>
     <button class="showall" id="showAll" hidden></button>
   </section>
+  </div></div>
 
   <section class="card" id="resumo">
     <h2><span class="h2t">Resumo do jogo</span><button class="fold" data-fold="resumo" aria-expanded="true">Esconder ▴</button></h2>
@@ -420,7 +447,7 @@ details.card>summary::-webkit-details-marker{display:none}
 <script>
 (()=>{
 const KEY='scouting-banco-v1';
-const APP_VERSION='2026-11-04.4';
+const APP_VERSION='2026-11-04.5';
 const $=id=>document.getElementById(id);
 
 const TYPES={
@@ -497,7 +524,7 @@ async function nextPeriod(){
   if(S.period>=S.periods){
     if(S.ended){$('resumo').scrollIntoView({behavior:'smooth'});return}
     if(!await ask('Terminar o jogo?','O relógio para e vais para o resumo final.','Terminar jogo'))return;
-    const t=now();S.clock.base=t;S.clock.running=false;S.ended=true;pausePens();
+    const t=now();S.clock.base=t;S.clock.running=false;S.ended=true;pausePens();(S.pens||[]).forEach(p=>{p.done=true;p.since=null});
     addEvent({type:'per',team:'us',note:'Fim do jogo'},t);
     archiveGame();
     save();renderAll();toast('Jogo guardado na época');setFold('resumo',false);$('resumo').scrollIntoView({behavior:'smooth'});return;
@@ -1118,6 +1145,8 @@ $('btnUpdate').onclick=async()=>{
   }catch(e){toast('Não foi possível verificar. Tenta outra vez com internet.')}
 };
 
+const setHH=()=>{const h=document.querySelector('header');if(h)document.documentElement.style.setProperty('--hh',h.offsetHeight+'px')};
+addEventListener('resize',setHH);setInterval(setHH,1000);
 renderAll();
 checkStorage();
 })();
