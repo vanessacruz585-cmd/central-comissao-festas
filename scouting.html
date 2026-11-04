@@ -85,6 +85,10 @@ td.pos{color:var(--green);font-weight:900}td.neg{color:var(--red);font-weight:90
 .tobtn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tobtn b{font-variant-numeric:tabular-nums;color:var(--muted)}
 .tobtn.used b{color:var(--red)}
+.warnbox{background:#fff4d6;color:#4a3500;border:1px solid #e6b64a;border-radius:14px;padding:12px;margin-bottom:10px;font-size:.9rem;line-height:1.4}
+.warnbox .wt{display:block;font-weight:900;margin-bottom:4px}
+.warnbox .btnrow{margin-top:8px}
+.savedok{font-size:.75rem;color:var(--muted);text-align:center;margin:4px 0 10px}
 main{max-width:900px;margin:0 auto;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:#102f4d}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 6px;margin-bottom:10px}
@@ -226,6 +230,7 @@ details.card>summary::-webkit-details-marker{display:none}
 </header>
 
 <main>
+  <div class="warnbox" id="storeWarn" hidden></div>
   <section class="card prep" id="prep">
     <h2>Preparar jogo</h2>
     <ol class="steps">
@@ -305,6 +310,15 @@ details.card>summary::-webkit-details-marker{display:none}
       <button class="btn sec" id="btnNewGame">Novo jogo (manter plantel)</button>
       <button class="btn danger" id="btnReset">Apagar tudo</button>
     </div>
+    <span class="lbl">Cópia de segurança</span>
+    <p class="pmeta">Os dados ficam guardados só neste aparelho e neste browser. Para passar o plantel a outra pessoa ou para outro telemóvel, copia-o e cola-o no passo 1 do outro aparelho.</p>
+    <div class="btnrow">
+      <button class="btn sec" id="btnCopySquad">Copiar plantel</button>
+      <button class="btn sec" id="btnBackup">Copiar cópia completa</button>
+    </div>
+    <label class="lbl" for="restoreTxt">Restaurar cópia completa</label>
+    <textarea class="bulk" id="restoreTxt" style="min-height:70px" placeholder="Cola aqui a cópia completa"></textarea>
+    <div class="btnrow"><button class="btn" id="btnRestore">Restaurar</button></div>
   </details>
 </main>
 
@@ -357,7 +371,23 @@ const blank=()=>({
 });
 let S;
 try{S=JSON.parse(localStorage.getItem(KEY))||blank()}catch(e){S=blank()}
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+let storeOk=true;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));if(!storeOk){storeOk=true;checkStorage()}}catch(e){if(storeOk){storeOk=false;checkStorage()}}};
+function storageWorks(){try{const k=KEY+'-t';localStorage.setItem(k,'1');const ok=localStorage.getItem(k)==='1';localStorage.removeItem(k);return ok}catch(e){return false}}
+const inApp=/FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Messenger|Snapchat|TikTok|musical_ly|Line\/|; wv\)/i.test(navigator.userAgent);
+function checkStorage(){
+  const box=document.getElementById('storeWarn');if(!box)return;
+  if(!storeOk||!storageWorks()){
+    box.innerHTML='<span class="wt">⚠ Este browser não está a guardar os dados</span>Se saíres da página, os jogadores e os registos perdem-se. Abre o link no Chrome ou no Safari e não uses janela privada.';
+    box.hidden=false;
+  }else if(inApp){
+    box.innerHTML='<span class="wt">⚠ Estás a abrir dentro de outra app</span>O browser do WhatsApp, Facebook ou Instagram pode apagar os dados quando sais. Abre no Chrome ou no Safari: menu <b>⋮</b> ou <b>…</b> → <b>Abrir no browser</b>. Depois adiciona ao ecrã principal.<div class="btnrow"><button class="btn sec" id="warnCopy">Copiar link</button><button class="btn sec" id="warnHide">Fechar aviso</button></div>';
+    box.hidden=false;
+  }else box.hidden=true;
+}
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+addEventListener('pagehide',()=>save());
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save()});
 
 /* ---------- relógio ---------- */
 const now=()=>S.clock.running?S.clock.base+(Date.now()-S.clock.since)/1000:S.clock.base;
@@ -791,7 +821,26 @@ $('toastUndo').onclick=()=>{
 };
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSheet();closeDlg(false)}});
 
+/* ---------- cópias de segurança ---------- */
+$('btnCopySquad').onclick=()=>{
+  if(!S.players.length){toast('O plantel está vazio');return}
+  copyText(S.players.slice().sort(byNum).map(p=>p.num+' '+p.name).join('\n'),'Plantel copiado · cola no passo 1 do outro aparelho','Plantel');
+};
+$('btnBackup').onclick=()=>copyText('SCOUTING1:'+JSON.stringify(S),'Cópia completa copiada · guarda-a numa nota ou envia-a para ti','Cópia completa');
+$('btnRestore').onclick=async()=>{
+  let txt=$('restoreTxt').value.trim().replace(/^SCOUTING1:/,'');
+  let data;try{data=JSON.parse(txt)}catch(e){toast('Este texto não é uma cópia completa válida');return}
+  if(!data||!Array.isArray(data.players)||!Array.isArray(data.events)){toast('Este texto não é uma cópia completa válida');return}
+  if(!await ask('Restaurar cópia?','Substitui o plantel e o jogo que estão agora neste aparelho.','Restaurar',true))return;
+  S={...blank(),...data};S.clock.running=false;save();renderAll();$('restoreTxt').value='';toast('Cópia restaurada · '+S.players.length+' jogadores');
+};
+document.addEventListener('click',e=>{
+  if(e.target.id==='warnHide')$('storeWarn').hidden=true;
+  if(e.target.id==='warnCopy')copyText(location.href,'Link copiado · cola no Chrome ou Safari','Link da aplicação');
+});
+
 renderAll();
+checkStorage();
 })();
 </script>
 </body>
