@@ -447,7 +447,7 @@ details.card>summary::-webkit-details-marker{display:none}
 <script>
 (()=>{
 const KEY='scouting-banco-v1';
-const APP_VERSION='2026-11-04.5';
+const APP_VERSION='2026-11-04.6';
 const $=id=>document.getElementById(id);
 
 const TYPES={
@@ -515,7 +515,7 @@ async function toggleClock(){
       S.players.forEach(p=>{if(p.onField)p.enteredAt=t});
       addEvent({type:'per',team:'us',note:periodName(S.period)},t);
     }
-    S.clock.since=Date.now();S.clock.running=true;
+    S.clock.since=Date.now();S.clock.running=true;resumePens();
   }
   save();renderAll();
 }
@@ -852,10 +852,13 @@ function renderAlerts(){
   if($('alerts').innerHTML!==h)$('alerts').innerHTML=h;
 }
 const penEl=p=>p.el==null?Math.max(0,now()-p.start):p.el+(p.since?(Date.now()-p.since)/1000:0);
-function pausePens(){(S.pens||[]).forEach(p=>{if(!p.done&&p.since){p.el=penEl(p);p.since=null}})}
+// Pausa feita pelo relógio do jogo: fica marcada para retomar com ele.
+function pausePens(){(S.pens||[]).forEach(p=>{if(!p.done&&p.since){p.el=penEl(p);p.since=null;p.auto=true}})}
+function resumePens(){(S.pens||[]).forEach(p=>{if(!p.done&&p.auto&&!p.since){p.since=Date.now();p.auto=false}})}
 function togglePen(id){
   const p=(S.pens||[]).find(x=>x.id===id);if(!p||p.done)return;
   if(p.el==null)p.el=penEl(p);
+  p.auto=false;
   if(p.since){p.el=penEl(p);p.since=null}else p.since=Date.now();
   save();renderAlerts();
 }
@@ -912,7 +915,7 @@ document.addEventListener('click',async e=>{
   if(d.delgame){const g=(S.history||[]).find(x=>x.id===d.delgame);if(!g)return;
     if(!await ask('Apagar este jogo da época?',dShort(g.date)+' · '+g.team+' '+g.us+'–'+g.them+' '+g.opp+'. Os números deste jogo deixam de contar.','Apagar jogo',true))return;
     S.history=S.history.filter(x=>x!==g);if(S.archived===g.id)S.archived=null;save();renderSeason();toast('Jogo apagado da época');return}
-  if(d.toend){S.toUntil=0;if(S.started&&!S.ended&&!S.clock.running){S.clock.since=Date.now();S.clock.running=true}save();renderAll();renderAlerts();return}
+  if(d.toend){S.toUntil=0;if(S.started&&!S.ended&&!S.clock.running){S.clock.since=Date.now();S.clock.running=true;resumePens()}save();renderAll();renderAlerts();return}
   if(d.star){const ev=S.events.find(x=>x.id===d.star);ev.hl=!ev.hl;save();renderTimeline();renderResumo();return}
   if(d.del){
     const ev=S.events.find(x=>x.id===d.del);
