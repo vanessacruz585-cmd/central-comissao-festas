@@ -321,12 +321,19 @@ details.card>summary::-webkit-details-marker{display:none}
       <button class="btn" id="btnCsv">Copiar para Excel</button>
       <button class="btn sec" id="btnCopy">Copiar resumo</button>
       <button class="btn sec" id="btnHl">⭐ Momento alto</button>
+      <button class="btn" id="btnSendGame">📤 Enviar jogo à equipa</button>
     </div>
   </section>
 
   <section class="card" id="epoca">
     <h2><span class="h2t">Época <span class="hint" id="seasonCount"></span></span><button class="fold" data-fold="epoca" aria-expanded="true">Esconder ▴</button></h2>
     <div id="seasonBody"></div>
+    <h3 class="sub">Partilhar com a equipa</h3>
+    <p class="pmeta">Quem regista envia os jogos pelo WhatsApp. Quem recebe copia a mensagem inteira, cola-a aqui e carrega em Importar. Os jogos que já existem não se repetem. Os jogadores são reconhecidos pelo número da camisola.</p>
+    <div class="btnrow"><button class="btn sec" id="btnSendAll">📤 Enviar todos os jogos</button></div>
+    <label class="lbl" for="importTxt">Importar jogos recebidos</label>
+    <textarea class="bulk" id="importTxt" style="min-height:70px" placeholder="Cola aqui a mensagem recebida"></textarea>
+    <div class="btnrow"><button class="btn" id="btnImport">📥 Importar jogos</button></div>
   </section>
 
   <details class="card" id="setup">
@@ -999,6 +1006,57 @@ function applyFold(){
 function setFold(id,min){FOLD[id]=min;try{localStorage.setItem(UIKEY,JSON.stringify(FOLD))}catch(e){}applyFold()}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-fold]');if(b)setFold(b.dataset.fold,!FOLD[b.dataset.fold])});
 applyFold();
+
+/* ---------- partilhar jogos entre aparelhos ---------- */
+const GTAG='SCOUTJOGOS1:';
+const b64e=str=>{const u=new TextEncoder().encode(str);let b='';u.forEach(c=>b+=String.fromCharCode(c));return btoa(b)};
+const b64d=str=>new TextDecoder().decode(Uint8Array.from(atob(str),c=>c.charCodeAt(0)));
+function gamesMessage(games){
+  const head=games.length===1
+    ?`⚽ ${games[0].team} ${games[0].us}–${games[0].them} ${games[0].opp} (${dShort(games[0].date)})`
+    :`⚽ ${games.length} jogos de ${games[0].team} (${dShort(games[0].date)} a ${dShort(games[games.length-1].date)})`;
+  return head+'\nPara importar: Scouting → Época → Importar jogos. Copia a mensagem inteira.\n'+GTAG+b64e(JSON.stringify(games));
+}
+async function shareText(text,title,okMsg){
+  if(navigator.share){
+    try{await navigator.share({text});return}catch(e){if(e&&e.name==='AbortError')return}
+  }
+  copyText(text,okMsg,title);
+}
+$('btnSendGame').onclick=async()=>{
+  let g=(S.history||[]).find(x=>x.id===S.archived);
+  if(!g){
+    if(!S.started){toast('Ainda não há jogo para enviar');return}
+    if(!await ask('Guardar e enviar o jogo?','O jogo ainda não terminou com 🏁. Queres guardá-lo na época tal como está e enviá-lo?','Guardar e enviar'))return;
+    archiveGame();save();renderAll();g=S.history.find(x=>x.id===S.archived);
+  }
+  shareText(gamesMessage([g]),'Enviar jogo','Jogo copiado · cola no grupo do WhatsApp');
+};
+$('btnSendAll').onclick=()=>{
+  const H=S.history||[];if(!H.length){toast('Ainda não há jogos guardados');return}
+  shareText(gamesMessage(H),'Enviar jogos','Jogos copiados · cola no grupo do WhatsApp');
+};
+$('btnImport').onclick=()=>{
+  const txt=$('importTxt').value;const i=txt.indexOf(GTAG);
+  if(i<0){toast('Não encontrei jogos nesta mensagem. Copia a mensagem inteira.');return}
+  let games;
+  try{games=JSON.parse(b64d(txt.slice(i+GTAG.length).trim().split(/\s/)[0]))}catch(e){toast('A mensagem está incompleta. Copia-a outra vez, inteira.');return}
+  if(!Array.isArray(games)){toast('A mensagem não tem jogos válidos');return}
+  if(!S.history)S.history=[];
+  const byNum=new Map(S.players.map(p=>[p.num,p.id]));
+  const pidFor=r=>byNum.get(r.num)||('n'+r.num);
+  const day=ms=>new Date(ms).toDateString();
+  let added=0,dup=0;
+  games.forEach(g=>{
+    if(!g||!Array.isArray(g.players))return;
+    if(S.history.some(h=>h.id===g.id||(day(h.date)===day(g.date)&&h.opp.trim().toLowerCase()===String(g.opp).trim().toLowerCase()))){dup++;return}
+    S.history.push({...g,players:g.players.map(r=>({...r,pid:pidFor(r)}))});added++;
+  });
+  S.history.sort((a,b)=>a.date-b.date);
+  save();renderAll();
+  if(added){$('importTxt').value='';setFold('epoca',false)}
+  toast((added?added+' jogo'+(added>1?'s':'')+' importado'+(added>1?'s':''):'Nenhum jogo novo')+(dup?' · '+dup+' já existia'+(dup>1?'m':''):''));
+};
 
 /* ---------- funcionar sem internet ---------- */
 function setOffline(txt){const el=document.getElementById('offlineState');if(el)el.innerHTML=txt}
