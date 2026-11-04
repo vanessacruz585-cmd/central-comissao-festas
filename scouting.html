@@ -116,6 +116,11 @@ td.pos{color:var(--green);font-weight:900}td.neg{color:var(--red);font-weight:90
 .barlbl span{flex:1 0 22px;max-width:44px;text-align:center;font-size:.6rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .legend2{font-size:.72rem;color:var(--muted);margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
 .legend2 i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.card.min>:not(h2){display:none!important}
+.card.min{padding-bottom:8px}
+.card.min h2{margin-bottom:0}
+.fold{margin-left:auto;border:1px solid var(--line);background:transparent;border-radius:999px;padding:5px 12px;font-weight:800;font-size:.78rem;color:var(--ink);white-space:nowrap}
+.h2t{display:flex;align-items:baseline;gap:8px;min-width:0;flex-wrap:wrap}
 main{max-width:900px;margin:0 auto;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:#102f4d}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 6px;margin-bottom:10px}
@@ -300,11 +305,11 @@ details.card>summary::-webkit-details-marker{display:none}
   </section>
 
   <section class="card" id="resumo">
-    <h2>Resumo do jogo <span class="hint">toca no cabeçalho da tabela para ordenar</span></h2>
+    <h2><span class="h2t">Resumo do jogo</span><button class="fold" data-fold="resumo" aria-expanded="true">Esconder ▴</button></h2>
     <div class="kpis" id="kpis"></div>
     <h3 class="sub">Golos · quem estava em campo</h3>
     <ul class="goals" id="goalList"></ul>
-    <h3 class="sub">Por jogador · GM/GS = golos marcados/sofridos com ele em campo</h3>
+    <h3 class="sub">Por jogador · GM/GS = golos marcados/sofridos com ele em campo · toca no cabeçalho para ordenar</h3>
     <div class="tw"><table id="statTable"></table></div>
     <div class="btnrow">
       <button class="btn" id="btnCsv">Copiar para Excel</button>
@@ -314,7 +319,7 @@ details.card>summary::-webkit-details-marker{display:none}
   </section>
 
   <section class="card" id="epoca">
-    <h2>Época <span class="hint" id="seasonCount"></span></h2>
+    <h2><span class="h2t">Época <span class="hint" id="seasonCount"></span></span><button class="fold" data-fold="epoca" aria-expanded="true">Esconder ▴</button></h2>
     <div id="seasonBody"></div>
   </section>
 
@@ -461,7 +466,7 @@ async function nextPeriod(){
     const t=now();S.clock.base=t;S.clock.running=false;S.ended=true;pausePens();
     addEvent({type:'per',team:'us',note:'Fim do jogo'},t);
     archiveGame();
-    save();renderAll();toast('Jogo guardado na época');$('resumo').scrollIntoView({behavior:'smooth'});return;
+    save();renderAll();toast('Jogo guardado na época');setFold('resumo',false);$('resumo').scrollIntoView({behavior:'smooth'});return;
   }
   if(!await ask('Terminar '+periodName(S.period)+'?','Passa à parte seguinte com o relógio em pausa. As faltas acumuladas recomeçam.','Próxima parte'))return;
   const t=now();S.clock.base=t;S.clock.running=false;pausePens();
@@ -973,6 +978,20 @@ document.addEventListener('click',e=>{
   if(e.target.id==='warnHide')$('storeWarn').hidden=true;
   if(e.target.id==='warnCopy')copyText(location.href,'Link copiado · cola no Chrome ou Safari','Link da aplicação');
 });
+
+/* ---------- esconder/mostrar secções ---------- */
+const UIKEY=KEY+'-ui';
+let FOLD={resumo:true,epoca:true};
+try{Object.assign(FOLD,JSON.parse(localStorage.getItem(UIKEY))||{})}catch(e){}
+function applyFold(){
+  ['resumo','epoca'].forEach(id=>{
+    const min=!!FOLD[id],card=$(id),b=card.querySelector('.fold');
+    card.classList.toggle('min',min);b.textContent=min?'Mostrar ▾':'Esconder ▴';b.setAttribute('aria-expanded',String(!min));
+  });
+}
+function setFold(id,min){FOLD[id]=min;try{localStorage.setItem(UIKEY,JSON.stringify(FOLD))}catch(e){}applyFold()}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-fold]');if(b)setFold(b.dataset.fold,!FOLD[b.dataset.fold])});
+applyFold();
 
 renderAll();
 checkStorage();
