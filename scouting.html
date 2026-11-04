@@ -363,6 +363,7 @@ details.card>summary::-webkit-details-marker{display:none}
     </div>
     <span class="lbl">Cópia de segurança</span>
     <p class="pmeta" id="offlineState"></p>
+    <div class="btnrow" style="align-items:center"><span class="pmeta" id="appVersion"></span><button class="btn sec" id="btnUpdate">🔄 Procurar atualização</button></div>
     <p class="pmeta">Os dados ficam guardados só neste aparelho e neste browser. Para passar o plantel a outra pessoa ou para outro telemóvel, copia-o e cola-o no passo 1 do outro aparelho.</p>
     <div class="btnrow">
       <button class="btn sec" id="btnCopySquad">Copiar plantel</button>
@@ -407,6 +408,7 @@ details.card>summary::-webkit-details-marker{display:none}
 <script>
 (()=>{
 const KEY='scouting-banco-v1';
+const APP_VERSION='2026-11-04.2';
 const $=id=>document.getElementById(id);
 
 const TYPES={
@@ -1064,10 +1066,25 @@ $('btnImport').onclick=()=>{
 /* ---------- funcionar sem internet ---------- */
 function setOffline(txt){const el=document.getElementById('offlineState');if(el)el.innerHTML=txt}
 if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
-  navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready)
-    .then(()=>setOffline('✓ <b>Pronta para usar sem internet</b> neste aparelho. Abre-a uma vez com rede de vez em quando para receber as atualizações.'))
+  let reloaded=false;const hadSW=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloaded||!hadSW)return;reloaded=true;location.reload()});
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{reg.update().catch(()=>{});return navigator.serviceWorker.ready})
+    .then(()=>setOffline('✓ <b>Pronta para usar sem internet</b> neste aparelho. Com internet abre sempre a versão mais recente.'))
     .catch(()=>setOffline('Este browser não permite guardar a aplicação para usar sem internet. Abre-a com rede antes do jogo e não feches o separador.'));
 }else setOffline('Para usar sem internet, abre a aplicação pelo endereço do site no Chrome ou no Safari.');
+
+$('appVersion').textContent='Versão '+APP_VERSION;
+$('btnUpdate').onclick=async()=>{
+  if(!navigator.onLine){toast('Sem internet. Liga-te a uma rede e tenta outra vez.');return}
+  toast('A procurar atualização…');
+  try{
+    if('serviceWorker' in navigator){const reg=await navigator.serviceWorker.getRegistration();if(reg)await reg.update()}
+    const r=await fetch(location.pathname+'?fresh='+Date.now(),{cache:'no-store'});const t=await r.text();
+    const m=t.match(/APP_VERSION='([^']+)'/);
+    if(m&&m[1]!==APP_VERSION){toast('Nova versão '+m[1]+' · a atualizar…');setTimeout(()=>location.reload(),700)}
+    else toast('Já tens a versão mais recente ('+APP_VERSION+')');
+  }catch(e){toast('Não foi possível verificar. Tenta outra vez com internet.')}
+};
 
 renderAll();
 checkStorage();
