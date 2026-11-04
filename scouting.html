@@ -127,6 +127,8 @@ td.pos{color:var(--green);font-weight:900}td.neg{color:var(--red);font-weight:90
 .card.min h2{margin-bottom:0}
 .fold{margin-left:auto;border:1px solid var(--line);background:transparent;border-radius:999px;padding:5px 12px;font-weight:800;font-size:.78rem;color:var(--ink);white-space:nowrap}
 .h2t{display:flex;align-items:baseline;gap:8px;min-width:0;flex-wrap:wrap}
+.appfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:6px 2px 18px;color:var(--muted);font-size:.82rem;font-weight:700}
+.appfoot .btn{padding:8px 12px;font-size:.82rem}
 main{max-width:900px;margin:0 auto;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:#102f4d}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 6px;margin-bottom:10px}
@@ -363,7 +365,6 @@ details.card>summary::-webkit-details-marker{display:none}
     </div>
     <span class="lbl">Cópia de segurança</span>
     <p class="pmeta" id="offlineState"></p>
-    <div class="btnrow" style="align-items:center"><span class="pmeta" id="appVersion"></span><button class="btn sec" id="btnUpdate">🔄 Procurar atualização</button></div>
     <p class="pmeta">Os dados ficam guardados só neste aparelho e neste browser. Para passar o plantel a outra pessoa ou para outro telemóvel, copia-o e cola-o no passo 1 do outro aparelho.</p>
     <div class="btnrow">
       <button class="btn sec" id="btnCopySquad">Copiar plantel</button>
@@ -373,6 +374,7 @@ details.card>summary::-webkit-details-marker{display:none}
     <textarea class="bulk" id="restoreTxt" style="min-height:70px" placeholder="Cola aqui a cópia completa"></textarea>
     <div class="btnrow"><button class="btn" id="btnRestore">Restaurar</button></div>
   </details>
+  <footer class="appfoot"><span id="appVersion"></span><button class="btn sec" id="btnUpdate">🔄 Procurar atualização</button></footer>
 </main>
 
 <div class="sheet-bg" id="sheetBg">
@@ -408,7 +410,7 @@ details.card>summary::-webkit-details-marker{display:none}
 <script>
 (()=>{
 const KEY='scouting-banco-v1';
-const APP_VERSION='2026-11-04.2';
+const APP_VERSION='2026-11-04.3';
 const $=id=>document.getElementById(id);
 
 const TYPES={
@@ -1073,7 +1075,7 @@ if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
     .catch(()=>setOffline('Este browser não permite guardar a aplicação para usar sem internet. Abre-a com rede antes do jogo e não feches o separador.'));
 }else setOffline('Para usar sem internet, abre a aplicação pelo endereço do site no Chrome ou no Safari.');
 
-$('appVersion').textContent='Versão '+APP_VERSION;
+$('appVersion').textContent='Scouting do Banco · Versão '+APP_VERSION;
 $('btnUpdate').onclick=async()=>{
   if(!navigator.onLine){toast('Sem internet. Liga-te a uma rede e tenta outra vez.');return}
   toast('A procurar atualização…');
