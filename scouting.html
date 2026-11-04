@@ -78,7 +78,7 @@ td.pos{color:var(--green);font-weight:900}td.neg{color:var(--red);font-weight:90
 .alert{display:flex;align-items:center;gap:8px;border-radius:10px;padding:7px 10px;font-weight:800;font-size:.85rem;background:var(--red);color:#fff}
 .alert.to{background:#e6b64a;color:#3a2c00}
 .alert .cd{margin-left:auto;font-size:1.15rem;font-variant-numeric:tabular-nums}
-.alert button{border:0;background:rgba(255,255,255,.25);color:inherit;border-radius:8px;padding:4px 8px;font-weight:800;font-size:.75rem}
+.alert button{border:0;background:rgba(255,255,255,.25);color:inherit;border-radius:9px;padding:9px 10px;font-weight:900;font-size:.82rem;white-space:nowrap;min-width:96px}
 .fteam .tt{font-size:.7rem;font-weight:900;border:1px solid currentColor;border-radius:5px;padding:0 4px;opacity:.9}
 .tos{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
 .tobtn{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:10px 8px;font-weight:800;font-size:.85rem;text-align:left;display:flex;justify-content:space-between;gap:6px;align-items:center;min-width:0}
@@ -304,7 +304,7 @@ details.card>summary::-webkit-details-marker{display:none}
       <button class="btn" type="submit">Adicionar</button>
     </form>
     <ul class="roster" id="roster"></ul>
-    <p class="pmeta">Futsal: 2 partes de 20 min. O relógio corre sempre: não precisas de o parar quando a bola sai. Quando o árbitro terminar a parte, carrega em <b>⏭</b> (ou em <b>🏁</b> no fim do jogo). Usa <b>⏸</b> só em paragens longas, como lesões. As faltas acumuladas recomeçam a cada parte.</p>
+    <p class="pmeta">Futsal: 2 partes de 20 min. O relógio corre sempre: não precisas de o parar quando a bola sai. Quando o árbitro terminar a parte, carrega em <b>⏭</b> (ou em <b>🏁</b> no fim do jogo). Se quiseres, podes parar o relógio com <b>⏸</b>; se não, deixa-o a correr. Os 2 minutos de um vermelho têm cronómetro próprio, em tempo efetivo: carrega em ▶/⏸ na barra vermelha quando a bola anda e para. As faltas acumuladas recomeçam a cada parte.</p>
     <p class="pmeta">Antes de cada jogo escolhe os convocados em <b>Preparar jogo</b> e carrega em <b>IN</b> nos titulares. Durante o jogo, <b>IN</b>/<b>OUT</b> regista a entrada e a saída e conta o tempo de cada um.</p>
     <div class="btnrow">
       <button class="btn sec" id="btnNewGame">Novo jogo (manter plantel)</button>
@@ -399,7 +399,7 @@ const playerTime=(p,t=now())=>p.secs+(p.onField&&p.enteredAt!=null?t-p.enteredAt
 
 async function toggleClock(){
   const t=now();
-  if(S.clock.running){S.clock.base=t;S.clock.running=false}
+  if(S.clock.running){S.clock.base=t;S.clock.running=false;pausePens()}
   else{
     if(!S.started){
       if(!S.players.some(p=>p.onField)&&S.players.length&&!await ask('Iniciar sem titulares?','Ainda não carregaste em IN em nenhum jogador.','Iniciar'))return;
@@ -417,12 +417,12 @@ async function nextPeriod(){
   if(S.period>=S.periods){
     if(S.ended){$('resumo').scrollIntoView({behavior:'smooth'});return}
     if(!await ask('Terminar o jogo?','O relógio para e vais para o resumo final.','Terminar jogo'))return;
-    const t=now();S.clock.base=t;S.clock.running=false;S.ended=true;
+    const t=now();S.clock.base=t;S.clock.running=false;S.ended=true;pausePens();
     addEvent({type:'per',team:'us',note:'Fim do jogo'},t);
     save();renderAll();$('resumo').scrollIntoView({behavior:'smooth'});return;
   }
   if(!await ask('Terminar '+periodName(S.period)+'?','Passa à parte seguinte com o relógio em pausa. As faltas acumuladas recomeçam.','Próxima parte'))return;
-  const t=now();S.clock.base=t;S.clock.running=false;
+  const t=now();S.clock.base=t;S.clock.running=false;pausePens();
   S.period++;S.periodStart[S.period]=t;
   addEvent({type:'per',team:'us',note:periodName(S.period)},t);
   save();renderAll();
@@ -435,7 +435,7 @@ function addEvent(e,t=now()){
   if(ev.type==='g'){ev.lineup=S.players.filter(p=>p.onField).sort(byNum).map(p=>p.id);if(ev.pid&&!ev.lineup.includes(ev.pid))ev.lineup.push(ev.pid)}
   S.events.push(ev);
   if(!S.pens)S.pens=[];
-  if(ev.type==='r')S.pens.push({id:uid(),evId:ev.id,team:ev.team,start:t,done:false});
+  if(ev.type==='r')S.pens.push({id:uid(),evId:ev.id,team:ev.team,start:t,el:0,since:null,done:false});
   if(ev.type==='g'){
     const other=ev.team==='us'?'opp':'us';
     const p=S.pens.find(x=>!x.done&&x.team===other);
@@ -648,19 +648,29 @@ function renderAlerts(){
   const t=now(),pens=(S.pens||[]).filter(p=>!p.done);
   let h='';
   pens.forEach(p=>{
-    const left=PEN-(t-p.start),nm=p.team==='us'?S.team:S.opp;
-    h+=`<div class="alert">🟥 ${esc(nm)} em inferioridade<span class="cd">${fmt(Math.ceil(left))}</span></div>`;
+    const left=PEN-penEl(p),nm=p.team==='us'?S.team:S.opp,run=!!p.since,fresh=!run&&!p.el;
+    const lbl=fresh?'▶ Começar':run?'⏸ Parar':'▶ Continuar';
+    const sub=fresh?'Toca em Começar quando o jogo recomeçar':run?'A contar · para quando a bola parar':'Parado · tempo efetivo';
+    h+=`<div class="alert"><span>🟥 ${esc(nm)} em inferioridade<small style="display:block;font-weight:600;opacity:.85;font-size:.72rem">${sub}</small></span><span class="cd">${fmt(Math.ceil(left))}</span><button data-pen="${p.id}">${lbl}</button></div>`;
   });
   const tl=(S.toUntil||0)-Date.now();
   if(tl>0)h+=`<div class="alert to">⏱ Desconto de tempo · ${esc(S.toTeam==='us'?S.team:S.opp)}<span class="cd">${fmt(Math.ceil(tl/1000))}</span><button data-toend="1">▶ Retomar</button></div>`;
   if($('alerts').innerHTML!==h)$('alerts').innerHTML=h;
 }
+const penEl=p=>p.el==null?Math.max(0,now()-p.start):p.el+(p.since?(Date.now()-p.since)/1000:0);
+function pausePens(){(S.pens||[]).forEach(p=>{if(!p.done&&p.since){p.el=penEl(p);p.since=null}})}
+function togglePen(id){
+  const p=(S.pens||[]).find(x=>x.id===id);if(!p||p.done)return;
+  if(p.el==null)p.el=penEl(p);
+  if(p.since){p.el=penEl(p);p.since=null}else p.since=Date.now();
+  save();renderAlerts();
+}
 function checkPens(){
   const t=now();let changed=false;
   (S.pens||[]).forEach(p=>{
-    if(!p.done&&t-p.start>=PEN){
-      p.done=true;changed=true;
-      const nm=p.team==='us'?S.team:S.opp,et=p.start+PEN;
+    if(!p.done&&penEl(p)>=PEN){
+      p.done=true;p.since=null;changed=true;
+      const nm=p.team==='us'?S.team:S.opp,et=t;
       S.events.push({id:uid(),t:et,period:S.period,pt:et-(S.periodStart[S.period]||0),type:'pe',team:p.team,note:'2 minutos cumpridos · pode completar',hl:false});
       toast(nm+' já pode completar (2 min)');
     }
@@ -676,6 +686,7 @@ async function timeout(team){
   snap();
   const t=now();
   if(S.clock.running){S.clock.base=t;S.clock.running=false}
+  pausePens();
   addEvent({type:'to',team,note:'Relógio parado'},t);
   S.toUntil=Date.now()+TO*1000;S.toTeam=team;
   save();renderAll();renderAlerts();toast('Desconto de tempo · '+nm+' · relógio parado',true);
@@ -701,6 +712,7 @@ document.addEventListener('click',async e=>{
   if(d.more){openSheet(d.more);return}
   if(d.opp){logAction(d.opp,null,'opp');return}
   if(d.to){timeout(d.to);return}
+  if(d.pen){togglePen(d.pen);return}
   if(d.toend){S.toUntil=0;if(S.started&&!S.ended&&!S.clock.running){S.clock.since=Date.now();S.clock.running=true}save();renderAll();renderAlerts();return}
   if(d.star){const ev=S.events.find(x=>x.id===d.star);ev.hl=!ev.hl;save();renderTimeline();renderResumo();return}
   if(d.del){
