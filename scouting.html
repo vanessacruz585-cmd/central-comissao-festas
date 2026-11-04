@@ -161,6 +161,7 @@ h2 .hint{font-size:.75rem;color:var(--muted);font-weight:600}
 .cnt{height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-weight:900;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05;padding:0;font-size:1rem}
 .cnt small{font-size:.58rem;font-weight:800;color:var(--muted);text-transform:uppercase}
 .cnt.zero{color:var(--muted)}
+.cnt:disabled,.act:disabled{opacity:.3;cursor:not-allowed;filter:grayscale(1)}
 .cnt.f{border-color:rgba(227,138,43,.5)}
 .cnt.g{border-color:rgba(47,158,98,.55)}
 .cnt.g:not(.zero){background:var(--green);color:#fff}.cnt.g:not(.zero) small{color:#e6f6ec}
@@ -518,6 +519,7 @@ const snap=()=>{undoSnap=JSON.stringify(S)};
 function sendOff(p,t){p.secs=playerTime(p,t);p.onField=false;p.enteredAt=null;p.sentOff=true}
 
 function logAction(type,pid,team,note=''){
+  {const q=pid&&pById(pid);if(q&&!q.onField&&['fc','fs','g'].includes(type)){toast('Só jogadores em campo podem ter faltas ou golos. Carrega primeiro em IN.');return}}
   snap();
   const p=pById(pid),t=now();
   addEvent({type,pid,team,note},t);
@@ -557,6 +559,7 @@ function openSheet(pid){
   const p=pById(pid);sheetPid=pid;
   $('sTitle').textContent=pLabel(p);
   $('sSub').textContent=(p.onField?'Em campo':p.sentOff?'Expulso':'No banco')+' · '+fmt(playerTime(p))+' jogados';
+  document.querySelector('#sheetBg [data-act="fs"]').disabled=!p.onField;
   $('sNote').value='';$('sheetBg').classList.add('on');
 }
 function closeSheet(){$('sheetBg').classList.remove('on');sheetPid=null}
@@ -580,8 +583,8 @@ function rowHtml(p){
   const cls=p.sentOff?'row sent off':p.onField?'row on':'row off';
   return `<div class="${cls}" id="row-${p.id}">${io}
     <div class="who"><span class="num">${p.num}</span><div class="nm"><div class="pname"><span class="pn">${p.num}</span>${esc(p.name)}${flags}</div><div class="ptime" data-time="${p.id}">${fmt(playerTime(p))}</div></div></div>
-    <button class="cnt f${fc?'':' zero'}" data-a="fc" data-p="${p.id}" aria-label="Falta cometida">${fc}<small>falta</small></button>
-    <button class="cnt g${g?'':' zero'}" data-a="g" data-p="${p.id}" aria-label="Golo">${g}<small>golo</small></button>
+    <button class="cnt f${fc?'':' zero'}" data-a="fc" data-p="${p.id}" aria-label="Falta cometida" ${p.onField?'':'disabled'}>${fc}<small>falta</small></button>
+    <button class="cnt g${g?'':' zero'}" data-a="g" data-p="${p.id}" aria-label="Golo" ${p.onField?'':'disabled'}>${g}<small>golo</small></button>
     <button class="cardbtn y${y?' has':''}" data-a="y" data-p="${p.id}" aria-label="Cartão amarelo" ${r?'disabled':''}><i></i></button>
     <button class="cardbtn r${r?' has':''}" data-a="r" data-p="${p.id}" aria-label="Cartão vermelho" ${r?'disabled':''}><i></i></button>
     <button class="more" data-more="${p.id}" aria-label="Mais ações">⋯</button></div>`;
