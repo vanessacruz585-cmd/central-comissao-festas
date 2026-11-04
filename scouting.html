@@ -129,6 +129,12 @@ td.pos{color:var(--green);font-weight:900}td.neg{color:var(--red);font-weight:90
 .h2t{display:flex;align-items:baseline;gap:8px;min-width:0;flex-wrap:wrap}
 .appfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:6px 2px 18px;color:var(--muted);font-size:.82rem;font-weight:700}
 .appfoot .btn{padding:8px 12px;font-size:.82rem}
+.pin{width:100%;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:10px;margin-top:6px;font-weight:700}
+.pin:focus{outline:2px solid var(--blue);outline-offset:1px}
+.pin.need{border-color:#e6b64a;background:#fff8e6;color:#3a2c00}
+.ha{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+.ha .chip{padding:10px;font-size:.92rem;border-radius:10px}
+.vn{font-size:.72rem;font-weight:900;border-radius:6px;padding:1px 6px;background:var(--sky);color:var(--navy);white-space:nowrap}
 main{max-width:900px;margin:0 auto;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:#102f4d}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 6px;margin-bottom:10px}
@@ -275,12 +281,16 @@ details.card>summary::-webkit-details-marker{display:none}
   <section class="card prep" id="prep">
     <h2>Preparar jogo</h2>
     <ol class="steps">
-      <li class="step" id="st1"><span class="sn">1</span><div><div class="st">Plantel <span class="hint" id="squadCount"></span></div>
+      <li class="step" id="st1"><span class="sn">1</span><div><div class="st">A tua equipa e o plantel <span class="hint" id="squadCount"></span></div>
+        <input class="pin" id="pTeam" placeholder="Nome da tua equipa (ex.: Juncal)" aria-label="Nome da tua equipa" autocomplete="off">
         <div class="pmeta" id="squadMsg"></div><button class="linkbtn" id="btnEditSquad">Introduzir / editar plantel</button></div></li>
-      <li class="step" id="st2"><span class="sn">2</span><div><div class="st">Convocados para este jogo <span class="hint" id="callCount"></span></div>
+      <li class="step" id="st0"><span class="sn">2</span><div><div class="st">Jogo de hoje</div>
+        <input class="pin" id="pOpp" placeholder="Nome do adversário" aria-label="Nome do adversário" autocomplete="off">
+        <div class="ha"><button class="chip" id="haHome" aria-pressed="false">Em casa</button><button class="chip" id="haAway" aria-pressed="false">Fora</button></div></div></li>
+      <li class="step" id="st2"><span class="sn">3</span><div><div class="st">Convocados para este jogo <span class="hint" id="callCount"></span></div>
         <div class="minirow" id="callBtns"><button class="chip" id="callAll">Todos</button><button class="chip" id="callNone">Nenhum</button></div>
         <div class="callgrid" id="callGrid"></div></div></li>
-      <li class="step" id="st3"><span class="sn">3</span><div><div class="st">Titulares <span class="hint" id="startCount"></span></div>
+      <li class="step" id="st3"><span class="sn">4</span><div><div class="st">Titulares <span class="hint" id="startCount"></span></div>
         <div class="pmeta">Carrega em <b>IN</b> nos 5 que começam e depois em <b>▶ Iniciar</b>. Os restantes convocados ficam no banco.</div></div></li>
     </ol>
   </section>
@@ -410,7 +420,7 @@ details.card>summary::-webkit-details-marker{display:none}
 <script>
 (()=>{
 const KEY='scouting-banco-v1';
-const APP_VERSION='2026-11-04.3';
+const APP_VERSION='2026-11-04.4';
 const $=id=>document.getElementById(id);
 
 const TYPES={
@@ -466,6 +476,11 @@ async function toggleClock(){
   if(S.clock.running){S.clock.base=t;S.clock.running=false;pausePens()}
   else{
     if(!S.started){
+      if(!teamSet()||!oppSet()||S.home==null){
+        const miss=!teamSet()?'o nome da tua equipa':!oppSet()?'o nome do adversário':'se o jogo é em casa ou fora';
+        toast('Antes de iniciar, indica '+miss+' em Preparar jogo.');
+        $('prep').scrollIntoView({behavior:'smooth'});setTimeout(()=>{(!teamSet()?$('pTeam'):!oppSet()?$('pOpp'):$('haHome')).focus()},400);return;
+      }
       if(!S.players.some(p=>p.onField)&&S.players.length&&!await ask('Iniciar sem titulares?','Ainda não carregaste em IN em nenhum jogador.','Iniciar'))return;
       if(S.started)return;
       S.started=true;
@@ -597,7 +612,7 @@ function flashRow(pid){const el=pid&&$('row-'+pid);if(el){el.classList.remove('f
 
 function renderHeader(){
   const [a,b]=score();
-  $('hScore').textContent=a+' – '+b;$('hTeams').textContent=S.team+' vs '+S.opp;
+  $('hScore').textContent=a+' – '+b;$('hTeams').textContent=S.team+' vs '+S.opp+(S.home!=null?(S.home?' · Casa':' · Fora'):'');
   $('period').textContent=periodName(S.period)+(S.clock.running?'':S.started?' · pausa':'');
   const btn=$('btnClock');
   btn.textContent=S.clock.running?'⏸ Pausa':S.started?'▶ Retomar':'▶ Iniciar';
@@ -623,12 +638,20 @@ function renderFouls(){
 }
 const isCalled=p=>p.called!==false;
 const called=()=>S.players.filter(isCalled);
+const teamSet=()=>!!S.team&&S.team!=='A minha equipa';
+const oppSet=()=>!!S.opp&&S.opp!=='Adversário';
+const venue=h=>h===true?'Casa':h===false?'Fora':'';
 function renderPrep(){
   $('prep').hidden=S.started;if(S.started)return;
   const n=S.players.length,c=called().length,st=S.players.filter(p=>p.onField).length;
   $('squadCount').textContent=n?n+' jogadores':'';
   $('squadMsg').textContent=n?'Fica guardado para os próximos jogos.':'Ainda vazio. Introduz o plantel completo uma vez.';
-  $('st1').classList.toggle('done',n>0);$('st2').classList.toggle('done',c>0);$('st3').classList.toggle('done',st>0);
+  const ae=document.activeElement;
+  if(ae!==$('pTeam'))$('pTeam').value=teamSet()?S.team:'';if(ae!==$('pOpp'))$('pOpp').value=oppSet()?S.opp:'';
+  $('pTeam').classList.toggle('need',!teamSet());$('pOpp').classList.toggle('need',!oppSet());
+  $('haHome').setAttribute('aria-pressed',S.home===true);$('haAway').setAttribute('aria-pressed',S.home===false);
+  $('st0').classList.toggle('done',oppSet()&&S.home!=null);
+  $('st1').classList.toggle('done',n>0&&teamSet());$('st2').classList.toggle('done',c>0);$('st3').classList.toggle('done',st>0);
   $('callCount').textContent=c+' / 14';$('callCount').classList.toggle('over',c>14);
   $('callGrid').innerHTML=n?S.players.slice().sort(byNum).map(p=>`<button class="call" data-call="${p.id}" aria-pressed="${isCalled(p)}"><b>${p.num}</b><span>${esc(p.name)}</span></button>`).join(''):'';
   $('startCount').textContent=st+' / 5';
@@ -690,7 +713,7 @@ function statsRows(){
 function archiveGame(){
   if(!S.started||S.archived)return;
   const t=now(),[a,b]=score(),st=S.starters||[];
-  const g={id:uid(),date:Date.now(),team:S.team,opp:S.opp,us:a,them:b,dur:Math.round(t),
+  const g={id:uid(),date:Date.now(),team:S.team,opp:S.opp,home:S.home==null?null:S.home,us:a,them:b,dur:Math.round(t),
     fcUs:S.events.filter(e=>e.team==='us'&&e.type==='fc').length,fcThem:S.events.filter(e=>e.team==='opp'&&e.type==='fc').length,
     players:statsRows().map(r=>({pid:r.p.id,num:r.num,name:r.name,st:st.includes(r.p.id),min:Math.round(r.min),g:r.g,gm:r.gm,gs:r.gs,fc:r.fc,fs:r.fs,y:r.y,r:r.r,hl:r.hl}))};
   if(!S.history)S.history=[];
@@ -720,7 +743,8 @@ function renderSeason(){
   if(!H.length){$('seasonBody').innerHTML='<div class="empty">Ainda não há jogos guardados. No fim de cada jogo carrega em <b>🏁</b>: o jogo fica guardado aqui e os números de cada jogador vão-se somando.</div>';return}
   const w=H.filter(g=>res(g)==='w').length,d=H.filter(g=>res(g)==='d').length,l=H.length-w-d;
   const gf=H.reduce((s,g)=>s+g.us,0),ga=H.reduce((s,g)=>s+g.them,0),fpg=(H.reduce((s,g)=>s+(g.fcUs||0),0)/H.length).toFixed(1).replace('.',',');
-  const k=[['Jogos',H.length],['V-E-D',w+'-'+d+'-'+l],['Golos',gf+'–'+ga],['Diferença',sign(gf-ga)],['Faltas/jogo',fpg],['Pontos',w*3+d]];
+  const rec=f=>{const G=H.filter(f);if(!G.length)return '–';const W=G.filter(g=>res(g)==='w').length,D=G.filter(g=>res(g)==='d').length;return W+'-'+D+'-'+(G.length-W-D)};
+  const k=[['Jogos',H.length],['V-E-D',w+'-'+d+'-'+l],['Golos',gf+'–'+ga],['Diferença',sign(gf-ga)],['Faltas/jogo',fpg],['Pontos',w*3+d],['Casa V-E-D',rec(g=>g.home===true)],['Fora V-E-D',rec(g=>g.home===false)],['Golos/jogo',(gf/H.length).toFixed(1).replace('.',',')]];
   const A=seasonAgg();
   const top=(key,fmtv)=>{const c=A.filter(a=>key==='pm'?a.played:a[key]>0).sort((x,y)=>y[key]-x[key]||y.min-x.min)[0];return c?`<b>${c.num} ${esc(c.name)}</b><i>${fmtv(c)}</i>`:'<b>–</b>'};
   const rows=A.slice().sort((x,y)=>{const a=x[sSort],b=y[sSort];return (typeof a==='string'?a.localeCompare(b):a-b)*sDir||x.num-y.num});
@@ -735,7 +759,7 @@ function renderSeason(){
     <div class="tw"><table id="seasonTable"><thead><tr>${SCOLS.map(([k,l])=>`<th data-ssort="${k}">${l}${sSort===k?(sDir<0?' ↓':' ↑'):''}</th>`).join('')}</tr></thead>
     <tbody>${rows.map(a=>`<tr data-pseason="${a.pid}">${SCOLS.map(([k])=>{const v=a[k];const cl=k==='pm'?(v>0?'pos':v<0?'neg':'z'):(v===0?'z':'');return `<td class="${cl}">${cell(a,k)}</td>`}).join('')}</tr>`).join('')}</tbody></table></div>
     <h3 class="sub">Jogos guardados</h3>
-    <ul class="games">${H.slice().reverse().map(g=>`<li><span class="gd">${dShort(g.date)}</span><span class="gt">${esc(g.team)} vs ${esc(g.opp)}</span><span class="res ${res(g)}">${g.us}–${g.them}</span><button class="ibtn" data-delgame="${g.id}" aria-label="Apagar jogo">✕</button></li>`).join('')}</ul>`;
+    <ul class="games">${H.slice().reverse().map(g=>`<li><span class="gd">${dShort(g.date)}</span><span class="gt">${esc(g.team)} vs ${esc(g.opp)} ${g.home!=null?`<span class="vn">${g.home?'Casa':'Fora'}</span>`:''}</span><span class="res ${res(g)}">${g.us}–${g.them}</span><button class="ibtn" data-delgame="${g.id}" aria-label="Apagar jogo">✕</button></li>`).join('')}</ul>`;
 }
 function openPlayerSeason(pid){
   const a=seasonAgg().find(x=>x.pid===pid);if(!a)return;
@@ -750,7 +774,7 @@ function openPlayerSeason(pid){
   const maxMin=Math.max(1,...a.games.map(x=>x.r.min));
   const bars=a.games.map(({g,r})=>`<div class="bar" title="${esc(g.opp)} · ${mins(r.min)} min"><small>${mins(r.min)}</small><i class="${r.st?'st':''}" style="height:${Math.max(2,Math.round(r.min/maxMin*85))}%"></i>${r.g?'<em>'+'⚽'.repeat(Math.min(r.g,3))+'</em>':''}</div>`).join('');
   const lbls=a.games.map(({g})=>`<span>${esc(g.opp.split(' ')[0])}</span>`).join('');
-  const rows=a.games.slice().reverse().map(({g,r})=>`<tr><td>${dShort(g.date)}</td><td>${esc(g.opp)}</td><td><span class="res ${res(g)}">${g.us}–${g.them}</span></td><td>${r.st?'Sim':''}</td><td>${mins(r.min)}</td><td class="${r.g?'':'z'}">${r.g}</td><td class="${r.gm-r.gs>0?'pos':r.gm-r.gs<0?'neg':'z'}">${sign(r.gm-r.gs)}</td><td class="${r.fc?'':'z'}">${r.fc}</td><td class="${r.fs?'':'z'}">${r.fs}</td><td>${(r.y?r.y+'🟨':'')+(r.r?'🟥':'')}</td></tr>`).join('');
+  const rows=a.games.slice().reverse().map(({g,r})=>`<tr><td>${dShort(g.date)}</td><td>${esc(g.opp)}${g.home!=null?' <span class="vn">'+(g.home?'C':'F')+'</span>':''}</td><td><span class="res ${res(g)}">${g.us}–${g.them}</span></td><td>${r.st?'Sim':''}</td><td>${mins(r.min)}</td><td class="${r.g?'':'z'}">${r.g}</td><td class="${r.gm-r.gs>0?'pos':r.gm-r.gs<0?'neg':'z'}">${sign(r.gm-r.gs)}</td><td class="${r.fc?'':'z'}">${r.fc}</td><td class="${r.fs?'':'z'}">${r.fs}</td><td>${(r.y?r.y+'🟨':'')+(r.r?'🟥':'')}</td></tr>`).join('');
   $('pBody').innerHTML=`<div class="pk">${k.map(([l,v])=>`<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
     <h3 class="sub">Minutos por jogo</h3><div class="bars">${bars}</div><div class="barlbl">${lbls}</div>
     <div class="legend2"><span><i style="background:var(--navy)"></i>Titular</span><span><i style="background:var(--blue)"></i>Suplente</span><span>⚽ golos</span></div>
@@ -883,8 +907,8 @@ $('showAll').onclick=()=>{showAll=!showAll;renderTimeline()};
 $('btnHl').onclick=()=>{sheetPid='team';$('sTitle').textContent='⭐ Momento alto';$('sSub').textContent='Escreve a nota e carrega em “Momento alto”';$('sNote').value='';$('sheetBg').classList.add('on');$('sNote').focus()};
 
 /* ---------- configuração ---------- */
-$('fTeam').addEventListener('input',e=>{S.team=e.target.value.trim()||'A minha equipa';save();renderHeader()});
-$('fOpp').addEventListener('input',e=>{S.opp=e.target.value.trim()||'Adversário';save();renderHeader();$('oppTitle').textContent=S.opp});
+$('fTeam').addEventListener('input',e=>{S.team=e.target.value.trim()||'A minha equipa';save();renderHeader();renderPrep()});
+$('fOpp').addEventListener('input',e=>{S.opp=e.target.value.trim()||'Adversário';save();renderHeader();renderPrep();$('oppTitle').textContent=S.opp});
 $('fPeriods').onchange=e=>{S.periods=+e.target.value;if(S.period>S.periods)S.period=S.periods;save();renderAll()};
 $('fLen').oninput=e=>{S.len=+e.target.value||S.len;save()};
 $('btnBulk').onclick=()=>{
@@ -919,7 +943,7 @@ $('addForm').onsubmit=e=>{
 $('btnNewGame').onclick=async()=>{
   if(!await ask('Começar um novo jogo?','Os registos e tempos deste jogo saem do ecrã; o plantel e a época mantêm-se.','Novo jogo',true))return;
   if(S.started&&!S.archived&&S.events.some(e=>e.type!=='per')&&await ask('Guardar este jogo na época?','Ainda não carregaste em 🏁. Queres guardar os dados deste jogo na análise da época?','Guardar'))archiveGame();
-  S={...blank(),history:S.history||[],team:S.team,opp:S.opp,periods:S.periods,len:S.len,players:S.players.map(p=>({...p,onField:false,secs:0,enteredAt:null,sentOff:false}))};
+  S={...blank(),history:S.history||[],team:S.team,opp:'Adversário',home:null,periods:S.periods,len:S.len,players:S.players.map(p=>({...p,onField:false,secs:0,enteredAt:null,sentOff:false}))};
   save();renderAll();toast('Novo jogo pronto');
 };
 $('btnReset').onclick=async()=>{if(!await ask('Apagar tudo?','Apaga o plantel, o jogo atual e o histórico da época.','Apagar tudo',true))return;S=blank();save();renderAll()};
@@ -981,6 +1005,12 @@ $('toastUndo').onclick=()=>{
   S=restored;undoSnap=null;save();renderAll();$('toast').classList.remove('on');
 };
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSheet();closeDlg(false)}});
+
+/* ---------- equipa, adversário e casa/fora ---------- */
+$('pTeam').addEventListener('input',e=>{S.team=e.target.value.trim()||'A minha equipa';save();renderHeader();renderSetup();renderPrep()});
+$('pOpp').addEventListener('input',e=>{S.opp=e.target.value.trim()||'Adversário';save();renderHeader();renderSetup();renderPrep();$('oppTitle').textContent=S.opp});
+$('haHome').onclick=()=>{S.home=true;save();renderHeader();renderPrep()};
+$('haAway').onclick=()=>{S.home=false;save();renderHeader();renderPrep()};
 
 /* ---------- cópias de segurança ---------- */
 $('btnCopySquad').onclick=()=>{
