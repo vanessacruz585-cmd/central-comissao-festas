@@ -89,6 +89,33 @@ td.pos{color:var(--green);font-weight:900}td.neg{color:var(--red);font-weight:90
 .warnbox .wt{display:block;font-weight:900;margin-bottom:4px}
 .warnbox .btnrow{margin-top:8px}
 .savedok{font-size:.75rem;color:var(--muted);text-align:center;margin:4px 0 10px}
+.sheet.tall{max-height:90vh;overflow:auto}
+.hilite{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.hl3{border:1px solid var(--line);border-radius:10px;padding:8px;min-width:0}
+.hl3 span{display:block;font-size:.68rem;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.hl3 b{display:block;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hl3 i{font-style:normal;font-size:.8rem;color:var(--muted);font-weight:700}
+#seasonTable tbody tr{cursor:pointer}
+#seasonTable tbody tr:hover td{background:var(--sky)}
+.games{list-style:none;margin:0;padding:0}
+.games li{display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line)}
+.games li:last-child{border-bottom:0}
+.games .gd{flex:none;width:52px;font-size:.78rem;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
+.games .gt{flex:1;min-width:0;font-weight:700}
+.res{flex:none;border-radius:8px;padding:3px 8px;font-weight:900;font-variant-numeric:tabular-nums;color:#fff}
+.res.w{background:var(--green)}.res.d{background:var(--muted)}.res.l{background:var(--red)}
+.pk{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pk .kpi b{font-size:1.15rem}
+.bars{display:flex;align-items:flex-end;gap:4px;height:120px;padding:6px 0 0;border-bottom:1px solid var(--line);overflow-x:auto}
+.bar{flex:1 0 22px;max-width:44px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:2px}
+.bar i{display:block;width:100%;background:var(--blue);border-radius:5px 5px 0 0;min-height:2px}
+.bar i.st{background:var(--navy)}
+.bar small{font-size:.62rem;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar em{font-style:normal;font-size:.7rem;line-height:1}
+.barlbl{display:flex;gap:4px;overflow:hidden}
+.barlbl span{flex:1 0 22px;max-width:44px;text-align:center;font-size:.6rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.legend2{font-size:.72rem;color:var(--muted);margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
+.legend2 i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 main{max-width:900px;margin:0 auto;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:#102f4d}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 6px;margin-bottom:10px}
@@ -286,6 +313,11 @@ details.card>summary::-webkit-details-marker{display:none}
     </div>
   </section>
 
+  <section class="card" id="epoca">
+    <h2>Época <span class="hint" id="seasonCount"></span></h2>
+    <div id="seasonBody"></div>
+  </section>
+
   <details class="card" id="setup">
     <summary>Plantel e configuração do jogo</summary>
     <div class="formrow">
@@ -334,6 +366,14 @@ details.card>summary::-webkit-details-marker{display:none}
     <button class="close" id="sClose">Fechar</button>
   </div>
 </div>
+<div class="sheet-bg" id="pBg">
+  <div class="sheet tall" role="dialog" aria-modal="true" aria-labelledby="pTitle">
+    <h3 id="pTitle"></h3>
+    <div class="sub" id="pSub"></div>
+    <div id="pBody"></div>
+    <button class="close" id="pClose">Fechar</button>
+  </div>
+</div>
 <div class="sheet-bg" id="dlgBg">
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dTitle">
     <h3 id="dTitle"></h3>
@@ -367,7 +407,7 @@ const TYPES={
 const blank=()=>({
   team:'A minha equipa',opp:'Adversário',periods:2,len:20,
   players:[],events:[],
-  clock:{running:false,base:0,since:0},period:1,periodStart:{1:0},started:false,pens:[],toUntil:0,toTeam:null
+  clock:{running:false,base:0,since:0},period:1,periodStart:{1:0},started:false,pens:[],toUntil:0,toTeam:null,history:[],starters:[],archived:null
 });
 let S;
 try{S=JSON.parse(localStorage.getItem(KEY))||blank()}catch(e){S=blank()}
@@ -405,6 +445,7 @@ async function toggleClock(){
       if(!S.players.some(p=>p.onField)&&S.players.length&&!await ask('Iniciar sem titulares?','Ainda não carregaste em IN em nenhum jogador.','Iniciar'))return;
       if(S.started)return;
       S.started=true;
+      S.starters=S.players.filter(p=>p.onField).map(p=>p.id);
       S.players.forEach(p=>{if(p.onField)p.enteredAt=t});
       addEvent({type:'per',team:'us',note:periodName(S.period)},t);
     }
@@ -419,7 +460,8 @@ async function nextPeriod(){
     if(!await ask('Terminar o jogo?','O relógio para e vais para o resumo final.','Terminar jogo'))return;
     const t=now();S.clock.base=t;S.clock.running=false;S.ended=true;pausePens();
     addEvent({type:'per',team:'us',note:'Fim do jogo'},t);
-    save();renderAll();$('resumo').scrollIntoView({behavior:'smooth'});return;
+    archiveGame();
+    save();renderAll();toast('Jogo guardado na época');$('resumo').scrollIntoView({behavior:'smooth'});return;
   }
   if(!await ask('Terminar '+periodName(S.period)+'?','Passa à parte seguinte com o relógio em pausa. As faltas acumuladas recomeçam.','Próxima parte'))return;
   const t=now();S.clock.base=t;S.clock.running=false;pausePens();
@@ -618,6 +660,81 @@ function statsRows(){
     gm:onFor(p.id,'us'),gs:onFor(p.id,'opp'),pm:onFor(p.id,'us')-onFor(p.id,'opp'),
     hl:S.events.filter(e=>e.pid===p.id&&e.hl).length}));
 }
+/* ---------- época: histórico e análise por jogador ---------- */
+function archiveGame(){
+  if(!S.started||S.archived)return;
+  const t=now(),[a,b]=score(),st=S.starters||[];
+  const g={id:uid(),date:Date.now(),team:S.team,opp:S.opp,us:a,them:b,dur:Math.round(t),
+    fcUs:S.events.filter(e=>e.team==='us'&&e.type==='fc').length,fcThem:S.events.filter(e=>e.team==='opp'&&e.type==='fc').length,
+    players:statsRows().map(r=>({pid:r.p.id,num:r.num,name:r.name,st:st.includes(r.p.id),min:Math.round(r.min),g:r.g,gm:r.gm,gs:r.gs,fc:r.fc,fs:r.fs,y:r.y,r:r.r,hl:r.hl}))};
+  if(!S.history)S.history=[];
+  S.history.push(g);S.archived=g.id;
+}
+const res=g=>g.us>g.them?'w':g.us<g.them?'l':'d';
+const dShort=ms=>new Date(ms).toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'});
+const mins=sec=>Math.round(sec/60);
+const per40=(v,sec)=>sec>=300?(v*2400/sec).toFixed(1).replace('.',','):'–';
+function seasonAgg(){
+  const H=S.history||[],m=new Map();
+  H.forEach(g=>g.players.forEach(r=>{
+    let a=m.get(r.pid);
+    if(!a){a={pid:r.pid,num:r.num,name:r.name,called:0,played:0,st:0,min:0,g:0,gm:0,gs:0,fc:0,fs:0,y:0,r:0,hl:0,avail:0,games:[]};m.set(r.pid,a)}
+    a.num=r.num;a.name=r.name;a.called++;if(r.min>0){a.played++;a.avail+=g.dur}if(r.st)a.st++;
+    ['min','g','gm','gs','fc','fs','y','r','hl'].forEach(k=>a[k]+=r[k]||0);
+    a.games.push({g,r});
+  }));
+  m.forEach(a=>{const p=pById(a.pid);if(p){a.num=p.num;a.name=p.name}a.pm=a.gm-a.gs;a.mpg=a.played?a.min/a.played:0;a.g40=a.min>=300?a.g*2400/a.min:-1;a.c=a.y+a.r});
+  return [...m.values()];
+}
+let sSort='min',sDir=-1;
+const SCOLS=[['num','N.º'],['name','Jogador'],['called','Jogos'],['st','Titular'],['min','Minutos'],['mpg','Min/jogo'],['g','Golos'],['g40','Golos/40'],['pm','+/-'],['fc','Faltas c.'],['fs','Faltas s.'],['c','Cartões']];
+function renderSeason(){
+  const H=S.history||[];
+  $('seasonCount').textContent=H.length?H.length+' jogo'+(H.length>1?'s':'')+' guardado'+(H.length>1?'s':''):'';
+  if(!H.length){$('seasonBody').innerHTML='<div class="empty">Ainda não há jogos guardados. No fim de cada jogo carrega em <b>🏁</b>: o jogo fica guardado aqui e os números de cada jogador vão-se somando.</div>';return}
+  const w=H.filter(g=>res(g)==='w').length,d=H.filter(g=>res(g)==='d').length,l=H.length-w-d;
+  const gf=H.reduce((s,g)=>s+g.us,0),ga=H.reduce((s,g)=>s+g.them,0),fpg=(H.reduce((s,g)=>s+(g.fcUs||0),0)/H.length).toFixed(1).replace('.',',');
+  const k=[['Jogos',H.length],['V-E-D',w+'-'+d+'-'+l],['Golos',gf+'–'+ga],['Diferença',sign(gf-ga)],['Faltas/jogo',fpg],['Pontos',w*3+d]];
+  const A=seasonAgg();
+  const top=(key,fmtv)=>{const c=A.filter(a=>key==='pm'?a.played:a[key]>0).sort((x,y)=>y[key]-x[key]||y.min-x.min)[0];return c?`<b>${c.num} ${esc(c.name)}</b><i>${fmtv(c)}</i>`:'<b>–</b>'};
+  const rows=A.slice().sort((x,y)=>{const a=x[sSort],b=y[sSort];return (typeof a==='string'?a.localeCompare(b):a-b)*sDir||x.num-y.num});
+  const cell=(a,k)=>{const v=a[k];
+    if(k==='min')return mins(v);if(k==='mpg')return a.played?mins(v):'–';if(k==='g40')return v<0?'–':v.toFixed(1).replace('.',',');
+    if(k==='pm')return sign(v);if(k==='name')return esc(v);if(k==='c')return (a.y?a.y+'🟨':'')+(a.r?' '+a.r+'🟥':'')||0;return v};
+  $('seasonBody').innerHTML=`<div class="kpis">${k.map(([l,v])=>`<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
+    <div class="hilite"><div class="hl3"><span>Melhor marcador</span>${top('g',c=>c.g+' golos')}</div>
+    <div class="hl3"><span>Melhor +/-</span>${top('pm',c=>sign(c.pm))}</div>
+    <div class="hl3"><span>Mais minutos</span>${top('min',c=>mins(c.min)+' min')}</div></div>
+    <h3 class="sub">Jogadores · toca num nome para ver a análise</h3>
+    <div class="tw"><table id="seasonTable"><thead><tr>${SCOLS.map(([k,l])=>`<th data-ssort="${k}">${l}${sSort===k?(sDir<0?' ↓':' ↑'):''}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(a=>`<tr data-pseason="${a.pid}">${SCOLS.map(([k])=>{const v=a[k];const cl=k==='pm'?(v>0?'pos':v<0?'neg':'z'):(v===0?'z':'');return `<td class="${cl}">${cell(a,k)}</td>`}).join('')}</tr>`).join('')}</tbody></table></div>
+    <h3 class="sub">Jogos guardados</h3>
+    <ul class="games">${H.slice().reverse().map(g=>`<li><span class="gd">${dShort(g.date)}</span><span class="gt">${esc(g.team)} vs ${esc(g.opp)}</span><span class="res ${res(g)}">${g.us}–${g.them}</span><button class="ibtn" data-delgame="${g.id}" aria-label="Apagar jogo">✕</button></li>`).join('')}</ul>`;
+}
+function openPlayerSeason(pid){
+  const a=seasonAgg().find(x=>x.pid===pid);if(!a)return;
+  const H=S.history||[],teamMin=H.reduce((s,g)=>s+g.dur,0);
+  $('pTitle').textContent='#'+a.num+' '+a.name;
+  $('pSub').textContent='Convocado em '+a.called+' de '+H.length+' jogos · jogou '+a.played+' · titular '+a.st;
+  const k=[['Minutos',mins(a.min)],['Min/jogo',a.played?mins(a.mpg):'–'],['% do tempo',teamMin?Math.round(a.min*100/teamMin)+'%':'–'],
+    ['Golos',a.g],['Golos/40 min',per40(a.g,a.min)],['Momentos ⭐',a.hl],
+    ['GM em campo',a.gm],['GS em campo',a.gs],['+/-',sign(a.pm)],
+    ['+/- por 40',a.min>=300?(a.pm*2400/a.min>0?'+':'')+(a.pm*2400/a.min).toFixed(1).replace('.',','):'–'],['Faltas c.',a.fc],['Faltas s.',a.fs],
+    ['Faltas c./40',per40(a.fc,a.min)],['🟨',a.y],['🟥',a.r]];
+  const maxMin=Math.max(1,...a.games.map(x=>x.r.min));
+  const bars=a.games.map(({g,r})=>`<div class="bar" title="${esc(g.opp)} · ${mins(r.min)} min"><small>${mins(r.min)}</small><i class="${r.st?'st':''}" style="height:${Math.max(2,Math.round(r.min/maxMin*85))}%"></i>${r.g?'<em>'+'⚽'.repeat(Math.min(r.g,3))+'</em>':''}</div>`).join('');
+  const lbls=a.games.map(({g})=>`<span>${esc(g.opp.split(' ')[0])}</span>`).join('');
+  const rows=a.games.slice().reverse().map(({g,r})=>`<tr><td>${dShort(g.date)}</td><td>${esc(g.opp)}</td><td><span class="res ${res(g)}">${g.us}–${g.them}</span></td><td>${r.st?'Sim':''}</td><td>${mins(r.min)}</td><td class="${r.g?'':'z'}">${r.g}</td><td class="${r.gm-r.gs>0?'pos':r.gm-r.gs<0?'neg':'z'}">${sign(r.gm-r.gs)}</td><td class="${r.fc?'':'z'}">${r.fc}</td><td class="${r.fs?'':'z'}">${r.fs}</td><td>${(r.y?r.y+'🟨':'')+(r.r?'🟥':'')}</td></tr>`).join('');
+  $('pBody').innerHTML=`<div class="pk">${k.map(([l,v])=>`<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
+    <h3 class="sub">Minutos por jogo</h3><div class="bars">${bars}</div><div class="barlbl">${lbls}</div>
+    <div class="legend2"><span><i style="background:var(--navy)"></i>Titular</span><span><i style="background:var(--blue)"></i>Suplente</span><span>⚽ golos</span></div>
+    <h3 class="sub">Jogo a jogo</h3>
+    <div class="tw"><table style="min-width:520px"><thead><tr><th>Data</th><th>Adversário</th><th>Res.</th><th>Tit.</th><th>Min</th><th>Golos</th><th>+/-</th><th>FC</th><th>FS</th><th>Cartões</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  $('pBg').classList.add('on');
+}
+$('pClose').onclick=()=>$('pBg').classList.remove('on');
+$('pBg').addEventListener('click',e=>{if(e.target.id==='pBg')$('pBg').classList.remove('on')});
+
 function renderResumo(){
   const evs=S.events,c=(team,types)=>evs.filter(e=>e.team===team&&types.includes(e.type)).length;
   const [a,b]=score();
@@ -641,7 +758,7 @@ function renderSetup(){
   $('fPeriods').value=S.periods;$('fLen').value=S.len;
   $('roster').innerHTML=S.players.slice().sort(byNum).map(p=>`<li><span class="num">${p.num}</span><span class="pname">${esc(p.name)}</span><button class="ibtn" data-rm="${p.id}" aria-label="Remover">✕</button></li>`).join('');
 }
-function renderAll(){renderHeader();renderList();renderTimeline();renderResumo();renderSetup()}
+function renderAll(){renderHeader();renderList();renderTimeline();renderResumo();renderSeason();renderSetup()}
 
 const PEN=120,TO=60;
 function renderAlerts(){
@@ -704,6 +821,7 @@ setInterval(()=>{if(S.clock.running)tick()},500);
 $('btnClock').onclick=toggleClock;
 $('btnPeriod').onclick=nextPeriod;
 document.addEventListener('click',async e=>{
+  const tr=e.target.closest('tr[data-pseason]');if(tr){openPlayerSeason(tr.dataset.pseason);return}
   const t=e.target.closest('button');if(!t)return;
   const d=t.dataset;
   if(d.call){const p=pById(d.call);setCalled(p,!isCalled(p));save();renderAll();return}
@@ -713,6 +831,10 @@ document.addEventListener('click',async e=>{
   if(d.opp){logAction(d.opp,null,'opp');return}
   if(d.to){timeout(d.to);return}
   if(d.pen){togglePen(d.pen);return}
+  if(d.ssort){const k=d.ssort;if(sSort===k)sDir*=-1;else{sSort=k;sDir=(k==='name'||k==='num')?1:-1}renderSeason();return}
+  if(d.delgame){const g=(S.history||[]).find(x=>x.id===d.delgame);if(!g)return;
+    if(!await ask('Apagar este jogo da época?',dShort(g.date)+' · '+g.team+' '+g.us+'–'+g.them+' '+g.opp+'. Os números deste jogo deixam de contar.','Apagar jogo',true))return;
+    S.history=S.history.filter(x=>x!==g);if(S.archived===g.id)S.archived=null;save();renderSeason();toast('Jogo apagado da época');return}
   if(d.toend){S.toUntil=0;if(S.started&&!S.ended&&!S.clock.running){S.clock.since=Date.now();S.clock.running=true}save();renderAll();renderAlerts();return}
   if(d.star){const ev=S.events.find(x=>x.id===d.star);ev.hl=!ev.hl;save();renderTimeline();renderResumo();return}
   if(d.del){
@@ -769,11 +891,12 @@ $('addForm').onsubmit=e=>{
   $('aNum').value='';$('aName').value='';$('aNum').focus();save();renderAll();
 };
 $('btnNewGame').onclick=async()=>{
-  if(!await ask('Começar um novo jogo?','Os registos e tempos são apagados; o plantel mantém-se.','Novo jogo',true))return;
-  S={...blank(),team:S.team,opp:S.opp,periods:S.periods,len:S.len,players:S.players.map(p=>({...p,onField:false,secs:0,enteredAt:null,sentOff:false}))};
+  if(!await ask('Começar um novo jogo?','Os registos e tempos deste jogo saem do ecrã; o plantel e a época mantêm-se.','Novo jogo',true))return;
+  if(S.started&&!S.archived&&S.events.some(e=>e.type!=='per')&&await ask('Guardar este jogo na época?','Ainda não carregaste em 🏁. Queres guardar os dados deste jogo na análise da época?','Guardar'))archiveGame();
+  S={...blank(),history:S.history||[],team:S.team,opp:S.opp,periods:S.periods,len:S.len,players:S.players.map(p=>({...p,onField:false,secs:0,enteredAt:null,sentOff:false}))};
   save();renderAll();toast('Novo jogo pronto');
 };
-$('btnReset').onclick=async()=>{if(!await ask('Apagar tudo?','Apaga o plantel, o jogo e todos os registos.','Apagar tudo',true))return;S=blank();save();renderAll()};
+$('btnReset').onclick=async()=>{if(!await ask('Apagar tudo?','Apaga o plantel, o jogo atual e o histórico da época.','Apagar tudo',true))return;S=blank();save();renderAll()};
 
 /* ---------- exportar ---------- */
 const csvCell=v=>String(v).replace(/[\t\n]/g,' ');
