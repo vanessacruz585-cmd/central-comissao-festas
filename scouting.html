@@ -370,10 +370,10 @@ details.card>summary::-webkit-details-marker{display:none}
     <h2><span class="h2t">Época <span class="hint" id="seasonCount"></span></span><button class="fold" data-fold="epoca" aria-expanded="true">Esconder ▴</button></h2>
     <div id="seasonBody"></div>
     <h3 class="sub">Partilhar com a equipa</h3>
-    <p class="pmeta">Quem regista envia os jogos pelo WhatsApp. Quem recebe copia a mensagem inteira, cola-a aqui e carrega em Importar. Os jogos que já existem não se repetem. Os jogadores são reconhecidos pelo número da camisola.</p>
+    <p class="pmeta">Quem regista envia os jogos pelo WhatsApp ou por e-mail. Quem recebe copia a mensagem inteira, cola-a aqui e carrega em Importar. Os jogos que já existem não se repetem. Os jogadores são reconhecidos pelo número da camisola.</p>
     <div class="btnrow"><button class="btn sec" id="btnSendAll">📤 Enviar todos os jogos</button></div>
     <label class="lbl" for="importTxt">Importar jogos recebidos</label>
-    <textarea class="bulk" id="importTxt" style="min-height:70px" placeholder="Cola aqui a mensagem recebida"></textarea>
+    <textarea class="bulk" id="importTxt" style="min-height:70px" placeholder="Cola aqui a mensagem inteira (WhatsApp ou e-mail)"></textarea>
     <div class="btnrow"><button class="btn" id="btnImport">📥 Importar jogos</button></div>
   </section>
 
@@ -406,10 +406,10 @@ details.card>summary::-webkit-details-marker{display:none}
     <p class="pmeta">Os dados ficam guardados só neste aparelho e neste browser. Para passar o plantel a outra pessoa ou a outro telemóvel, carrega em <b>📤 Enviar plantel</b> e envia pelo WhatsApp. No outro aparelho, copia a mensagem inteira e cola-a em <b>Introduzir / editar plantel</b>.</p>
     <div class="btnrow">
       <button class="btn sec" id="btnCopySquad">📤 Enviar plantel</button>
-      <button class="btn sec" id="btnBackup">Copiar cópia completa</button>
+      <button class="btn sec" id="btnBackup">📤 Enviar cópia completa</button>
     </div>
     <label class="lbl" for="restoreTxt">Restaurar cópia completa</label>
-    <textarea class="bulk" id="restoreTxt" style="min-height:70px" placeholder="Cola aqui a cópia completa"></textarea>
+    <textarea class="bulk" id="restoreTxt" style="min-height:70px" placeholder="Cola aqui a mensagem inteira (WhatsApp ou e-mail)"></textarea>
     <div class="btnrow"><button class="btn" id="btnRestore">Restaurar</button></div>
   </details>
   <footer class="appfoot"><span id="appVersion"></span><button class="btn sec" id="btnUpdate">🔄 Procurar atualização</button></footer>
@@ -450,7 +450,7 @@ details.card>summary::-webkit-details-marker{display:none}
 <script>
 (()=>{
 const KEY='scouting-banco-v1';
-const APP_VERSION='2026-11-06.3';
+const APP_VERSION='2026-11-06.4';
 const $=id=>document.getElementById(id);
 
 const TYPES={
@@ -1080,13 +1080,39 @@ $('haAway').onclick=()=>{S.home=false;save();renderHeader();renderPrep()};
 /* ---------- cópias de segurança ---------- */
 $('btnCopySquad').onclick=sendSquad;
 $('btnSendSquad').onclick=sendSquad;
-$('btnBackup').onclick=()=>copyText('SCOUTING1:'+JSON.stringify(S),'Cópia completa copiada · guarda-a numa nota ou envia-a para ti','Cópia completa');
+const pl=(n,a,b)=>n+' '+(n===1?a:b);
+// Lê o código de uma mensagem, mesmo que o e-mail tenha partido as linhas ou acrescentado uma assinatura.
+function extractCode(txt,tag){
+  const i=txt.indexOf(tag);if(i<0)return null;
+  let after=txt.slice(i+tag.length);
+  if(after.includes('#FIM'))after=after.split('#FIM')[0];
+  else{
+    const lines=after.split(/\r?\n/);const keep=[lines[0]];
+    for(const l of lines.slice(1)){const t=l.trim();if(/^[A-Za-z0-9+/=]+$/.test(t))keep.push(t);else break}
+    after=keep.join('');
+  }
+  return after.replace(/[^A-Za-z0-9+/=]/g,'');
+}
+$('btnBackup').onclick=()=>{
+  const H=S.history||[];
+  const msg='Cópia completa · Scouting do Banco\n'+(teamSet()?S.team:'Equipa')+' · '+S.players.length+' jogadores · '+H.length+' jogo'+(H.length===1?'':'s')+' guardado'+(H.length===1?'':'s')+' · '+new Date().toLocaleDateString('pt-PT')
+    +'\nPara restaurar: Scouting → Plantel e configuração do jogo → Restaurar cópia completa → cola a mensagem inteira.\nSCOUTING2:'+b64e(JSON.stringify(S))+'#FIM';
+  shareText(msg,'Cópia completa','Cópia completa copiada · guarda-a numa nota ou envia-a para ti');
+};
 $('btnRestore').onclick=async()=>{
-  let txt=$('restoreTxt').value.trim().replace(/^SCOUTING1:/,'');
-  let data;try{data=JSON.parse(txt)}catch(e){toast('Este texto não é uma cópia completa válida');return}
+  const raw=$('restoreTxt').value;let data=null;
+  try{
+    const code=extractCode(raw,'SCOUTING2:');
+    if(code)data=JSON.parse(b64d(code));
+    else{ // formato antigo (SCOUTING1: seguido do texto)
+      const t=raw.replace(/[\u00AD\u200B-\u200D\uFEFF]/g,'');const a=t.indexOf('{'),b=t.lastIndexOf('}');
+      if(a>=0&&b>a)data=JSON.parse(t.slice(a,b+1));
+    }
+  }catch(e){data=null}
+  if(!data){toast('Não consegui ler a cópia. Copia a mensagem inteira e cola outra vez.');return}
   if(!data||!Array.isArray(data.players)||!Array.isArray(data.events)){toast('Este texto não é uma cópia completa válida');return}
-  if(!await ask('Restaurar cópia?','Substitui o plantel e o jogo que estão agora neste aparelho.','Restaurar',true))return;
-  S={...blank(),...data};S.clock.running=false;save();renderAll();$('restoreTxt').value='';toast('Cópia restaurada · '+S.players.length+' jogadores');
+  if(!await ask('Restaurar cópia?','Substitui o plantel, o jogo e a época que estão agora neste aparelho. A cópia tem '+pl((data.players||[]).length,'jogador','jogadores')+' e '+pl((data.history||[]).length,'jogo','jogos')+'.','Restaurar',true))return;
+  S={...blank(),...data};S.clock.running=false;save();renderAll();$('restoreTxt').value='';toast('Cópia restaurada · '+pl(S.players.length,'jogador','jogadores'));
 };
 document.addEventListener('click',e=>{
   if(e.target.id==='warnHide')$('storeWarn').hidden=true;
@@ -1115,7 +1141,7 @@ function gamesMessage(games){
   const head=games.length===1
     ?`⚽ ${games[0].team} ${games[0].us}–${games[0].them} ${games[0].opp} (${dShort(games[0].date)})`
     :`⚽ ${games.length} jogos de ${games[0].team} (${dShort(games[0].date)} a ${dShort(games[games.length-1].date)})`;
-  return head+'\nPara importar: Scouting → Época → Importar jogos. Copia a mensagem inteira.\n'+GTAG+b64e(JSON.stringify(games));
+  return head+'\nPara importar: Scouting → Época → Importar jogos → cola a mensagem inteira.\n'+GTAG+b64e(JSON.stringify(games))+'#FIM';
 }
 async function shareText(text,title,okMsg){
   if(navigator.share){
@@ -1140,7 +1166,7 @@ $('btnImport').onclick=()=>{
   const txt=$('importTxt').value;const i=txt.indexOf(GTAG);
   if(i<0){toast('Não encontrei jogos nesta mensagem. Copia a mensagem inteira.');return}
   let games;
-  try{games=JSON.parse(b64d(txt.slice(i+GTAG.length).trim().split(/\s/)[0]))}catch(e){toast('A mensagem está incompleta. Copia-a outra vez, inteira.');return}
+  try{games=JSON.parse(b64d(extractCode(txt,GTAG)))}catch(e){toast('A mensagem está incompleta. Copia-a outra vez, inteira.');return}
   if(!Array.isArray(games)){toast('A mensagem não tem jogos válidos');return}
   if(!S.history)S.history=[];
   const byNum=new Map(S.players.map(p=>[p.num,p.id]));
