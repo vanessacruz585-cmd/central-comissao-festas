@@ -309,7 +309,7 @@ details.card>summary::-webkit-details-marker{display:none}
     <ol class="steps">
       <li class="step" id="st1"><span class="sn">1</span><div><div class="st">A tua equipa e o plantel <span class="hint" id="squadCount"></span></div>
         <input class="pin" id="pTeam" placeholder="Nome da tua equipa (ex.: Juncal)" aria-label="Nome da tua equipa" autocomplete="off">
-        <div class="pmeta" id="squadMsg"></div><button class="linkbtn" id="btnEditSquad">Introduzir / editar plantel</button></div></li>
+        <div class="pmeta" id="squadMsg"></div><div class="minirow" style="gap:14px;align-items:center;flex-wrap:wrap"><button class="linkbtn" id="btnEditSquad">Introduzir / editar plantel</button><button class="linkbtn" id="btnSendSquad">📤 Enviar plantel</button></div></div></li>
       <li class="step" id="st0"><span class="sn">2</span><div><div class="st">Jogo de hoje</div>
         <input class="pin" id="pOpp" placeholder="Nome do adversário" aria-label="Nome do adversário" autocomplete="off">
         <div class="ha"><button class="chip" id="haHome" aria-pressed="false">Em casa</button><button class="chip" id="haAway" aria-pressed="false">Fora</button></div></div></li>
@@ -403,9 +403,9 @@ details.card>summary::-webkit-details-marker{display:none}
     </div>
     <span class="lbl">Cópia de segurança</span>
     <p class="pmeta" id="offlineState"></p>
-    <p class="pmeta">Os dados ficam guardados só neste aparelho e neste browser. Para passar o plantel a outra pessoa ou para outro telemóvel, copia-o e cola-o no passo 1 do outro aparelho.</p>
+    <p class="pmeta">Os dados ficam guardados só neste aparelho e neste browser. Para passar o plantel a outra pessoa ou a outro telemóvel, carrega em <b>📤 Enviar plantel</b> e envia pelo WhatsApp. No outro aparelho, copia a mensagem inteira e cola-a em <b>Introduzir / editar plantel</b>.</p>
     <div class="btnrow">
-      <button class="btn sec" id="btnCopySquad">Copiar plantel</button>
+      <button class="btn sec" id="btnCopySquad">📤 Enviar plantel</button>
       <button class="btn sec" id="btnBackup">Copiar cópia completa</button>
     </div>
     <label class="lbl" for="restoreTxt">Restaurar cópia completa</label>
@@ -450,7 +450,7 @@ details.card>summary::-webkit-details-marker{display:none}
 <script>
 (()=>{
 const KEY='scouting-banco-v1';
-const APP_VERSION='2026-11-06.2';
+const APP_VERSION='2026-11-06.3';
 const $=id=>document.getElementById(id);
 
 const TYPES={
@@ -962,24 +962,39 @@ $('fTeam').addEventListener('input',e=>{S.team=e.target.value.trim()||'A minha e
 $('fOpp').addEventListener('input',e=>{S.opp=e.target.value.trim()||'Adversário';save();renderHeader();renderPrep();$('oppTitle').textContent=S.opp});
 $('fPeriods').onchange=e=>{S.periods=+e.target.value;if(S.period>S.periods)S.period=S.periods;save();renderAll()};
 $('fLen').oninput=e=>{S.len=+e.target.value||S.len;save()};
+// Importa o plantel: um jogador por linha ("7 Miguel"). Aceita a mensagem do WhatsApp inteira.
 $('btnBulk').onclick=()=>{
-  const lines=$('bulk').value.split(/\n/).map(l=>l.trim()).filter(Boolean);
-  let added=0;const bad=[],dup=[];
+  const WA=/^\[[^\]]{3,40}\]\s*[^:]{1,40}:\s*/;
+  const lines=$('bulk').value.split(/\n/).map(l=>l.replace(WA,'').trim()).filter(Boolean);
+  let added=0,renamed=0;const bad=[],dup=[];
   lines.forEach(l=>{
+    const h=l.match(/^plantel\s+(?:d[aoe]\s+)?(.+?)(?:\s*\(\d+ jogador(?:es)?\))?\s*:?$/i);
+    if(h){if(!teamSet())S.team=h[1].trim();return}
+    if(/^para (importar|adicionar)/i.test(l))return;
     const m=l.match(/^#?(\d{1,3})\s*[-.,;:)\t]?\s*(.+)$/);
     if(!m){bad.push(l);return}
     const num=+m[1],name=m[2].trim();
-    if(S.players.some(p=>p.num===num)){dup.push(num);return}
+    const ex=S.players.find(p=>p.num===num);
+    if(ex){if(ex.name!==name){ex.name=name;renamed++}else dup.push(num);return}
     S.players.push({id:uid(),num,name,called:false,onField:false,enteredAt:null,secs:0,sentOff:false});added++;
   });
   save();renderAll();
   $('bulk').value=bad.join('\n');
   let msg=added+' jogador'+(added===1?'':'es')+' adicionado'+(added===1?'':'s');
-  if(dup.length)msg+=' · n.º repetido: '+dup.join(', ');
+  if(renamed)msg+=' · '+renamed+' nome'+(renamed>1?'s':'')+' atualizado'+(renamed>1?'s':'');
+  if(dup.length)msg+=' · '+dup.length+' já existia'+(dup.length>1?'m':'');
   if(bad.length)msg+=' · '+bad.length+' linha(s) sem número';
   toast(msg);
-  if(added)$('prep').scrollIntoView({behavior:'smooth'});
+  if(added||renamed)$('prep').scrollIntoView({behavior:'smooth'});
 };
+function squadMessage(){
+  const ps=S.players.slice().sort(byNum);
+  return 'Plantel '+(teamSet()?S.team:'da equipa')+' ('+ps.length+' jogadores)\nPara importar: Scouting → Preparar jogo → Introduzir / editar plantel → cola a mensagem inteira → Adicionar ao plantel.\n'+ps.map(p=>p.num+' '+p.name).join('\n');
+}
+function sendSquad(){
+  if(!S.players.length){toast('O plantel está vazio');return}
+  shareText(squadMessage(),'Plantel','Plantel copiado · cola-o no WhatsApp ou numa nota');
+}
 $('btnEditSquad').onclick=()=>{$('setup').open=true;$('bulk').scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>$('bulk').focus(),300)};
 $('callAll').onclick=()=>{S.players.forEach(p=>setCalled(p,true));save();renderAll()};
 $('callNone').onclick=()=>{S.players.forEach(p=>setCalled(p,false));save();renderAll()};
@@ -1024,18 +1039,23 @@ $('btnCopy').onclick=async()=>{
 /* ---------- janela de confirmação (sem confirm()/prompt()) ---------- */
 let dlgResolve=null;
 function ask(title,msg,ok='Confirmar',danger=false){
+  showTextVal=null;
   $('dTitle').textContent=title;$('dMsg').textContent=msg;$('dText').hidden=true;
   $('dOk').textContent=ok;$('dOk').className='btn'+(danger?' danger':'');$('dOk').hidden=false;$('dCancel').textContent='Cancelar';
   $('dlgBg').classList.add('on');$('dOk').focus();
   return new Promise(r=>{dlgResolve=r});
 }
+let showTextVal=null;
 function showText(title,msg,text){
-  $('dTitle').textContent=title;$('dMsg').textContent=msg;$('dText').hidden=false;$('dText').value=text;
-  $('dOk').hidden=true;$('dCancel').textContent='Fechar';$('dlgBg').classList.add('on');
-  $('dText').focus();$('dText').select();
+  $('dTitle').textContent=title;$('dMsg').textContent=msg;$('dText').hidden=false;$('dText').value=text;$('dText').readOnly=false;
+  $('dOk').hidden=false;$('dOk').textContent='Copiar';$('dOk').className='btn';$('dCancel').textContent='Fechar';$('dlgBg').classList.add('on');
+  showTextVal=text;$('dText').focus();$('dText').setSelectionRange(0,text.length);
 }
-function closeDlg(v){$('dlgBg').classList.remove('on');if(dlgResolve){dlgResolve(v);dlgResolve=null}}
-$('dOk').onclick=()=>closeDlg(true);$('dCancel').onclick=()=>closeDlg(false);
+function closeDlg(v){showTextVal=null;$('dlgBg').classList.remove('on');if(dlgResolve){dlgResolve(v);dlgResolve=null}}
+$('dOk').onclick=async()=>{
+  if(showTextVal!=null&&!dlgResolve){const t=showTextVal;try{await navigator.clipboard.writeText(t);showTextVal=null;closeDlg(true);toast('Copiado')}catch(e){$('dText').focus();$('dText').setSelectionRange(0,t.length);toast('Mantém o dedo no texto e escolhe Copiar')}return}
+  closeDlg(true);
+};$('dCancel').onclick=()=>closeDlg(false);
 $('dlgBg').addEventListener('click',e=>{if(e.target.id==='dlgBg')closeDlg(false)});
 async function copyText(text,okMsg,title){
   try{await navigator.clipboard.writeText(text);toast(okMsg)}
@@ -1058,10 +1078,8 @@ $('haHome').onclick=()=>{S.home=true;save();renderHeader();renderPrep()};
 $('haAway').onclick=()=>{S.home=false;save();renderHeader();renderPrep()};
 
 /* ---------- cópias de segurança ---------- */
-$('btnCopySquad').onclick=()=>{
-  if(!S.players.length){toast('O plantel está vazio');return}
-  copyText(S.players.slice().sort(byNum).map(p=>p.num+' '+p.name).join('\n'),'Plantel copiado · cola no passo 1 do outro aparelho','Plantel');
-};
+$('btnCopySquad').onclick=sendSquad;
+$('btnSendSquad').onclick=sendSquad;
 $('btnBackup').onclick=()=>copyText('SCOUTING1:'+JSON.stringify(S),'Cópia completa copiada · guarda-a numa nota ou envia-a para ti','Cópia completa');
 $('btnRestore').onclick=async()=>{
   let txt=$('restoreTxt').value.trim().replace(/^SCOUTING1:/,'');
