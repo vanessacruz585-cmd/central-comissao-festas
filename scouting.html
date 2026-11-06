@@ -245,6 +245,7 @@ details.card>summary::-webkit-details-marker{display:none}
 .sheet .sub{color:var(--muted);font-size:.85rem;margin-bottom:12px}
 .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .act{border:0;border-radius:12px;padding:14px 10px;font-weight:800;text-align:left;color:#fff}
+.a-rm{background:transparent;color:var(--ink);border:1px dashed var(--muted)}
 .a-fs{background:#3f8fb8}.a-g{background:var(--green)}.a-hl{background:#b78a1f}
 .sheet textarea{width:100%;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:10px;margin-top:10px}
 .dbtns{display:flex;gap:8px;margin-top:12px}.dbtns .btn{flex:1;padding:13px}
@@ -321,7 +322,7 @@ details.card>summary::-webkit-details-marker{display:none}
   </section>
 
   <section class="card">
-    <h2>Jogadores <span class="hint" id="onCount"></span></h2>
+    <h2><span class="h2t">Jogadores <span class="hint" id="onCount"></span></span><button class="fold" id="btnUndo" hidden>↩ Anular</button></h2>
     <div class="legend"><span>In/Out</span><span>Jogador</span><span>Falta</span><span>Golo</span><span>🟨</span><span>🟥</span><span></span></div>
     <div id="list"></div>
   </section>
@@ -421,6 +422,8 @@ details.card>summary::-webkit-details-marker{display:none}
     <div class="acts">
       <button class="act a-fs" data-act="fs">Falta sofrida</button>
       <button class="act a-hl" data-act="hl">⭐ Momento alto</button>
+      <button class="act a-rm" data-rm-ev="fc">− Retirar falta</button>
+      <button class="act a-rm" data-rm-ev="g">− Retirar golo</button>
     </div>
     <textarea id="sNote" rows="2" placeholder="Nota opcional (ex.: zona do campo, contexto)"></textarea>
     <button class="close" id="sClose">Fechar</button>
@@ -447,7 +450,7 @@ details.card>summary::-webkit-details-marker{display:none}
 <script>
 (()=>{
 const KEY='scouting-banco-v1';
-const APP_VERSION='2026-11-04.6';
+const APP_VERSION='2026-11-06.1';
 const $=id=>document.getElementById(id);
 
 const TYPES={
@@ -559,8 +562,18 @@ const count=(pid,type)=>S.events.filter(e=>e.pid===pid&&e.type===type).length;
 const oppCount=type=>S.events.filter(e=>e.team==='opp'&&e.type===type).length;
 
 /* snapshot para "Anular" */
-let undoSnap=null;
-const snap=()=>{undoSnap=JSON.stringify(S)};
+// Pilha de anulação: cada ação guarda o estado anterior (até 30).
+const undoStack=[];
+const snap=()=>{undoStack.push(JSON.stringify(S));if(undoStack.length>30)undoStack.shift();renderUndo()};
+function renderUndo(){const b=document.getElementById('btnUndo');if(!b)return;b.hidden=!undoStack.length;b.textContent='↩ Anular'+(undoStack.length>1?' ('+undoStack.length+')':'')}
+function doUndo(){
+  if(!undoStack.length)return;
+  const restored=JSON.parse(undoStack.pop());
+  // manter o relógio atual ao anular
+  restored.clock=S.clock;restored.period=S.period;restored.periodStart=S.periodStart;restored.started=S.started;
+  S=restored;save();renderAll();renderUndo();
+  toast('Anulado'+(undoStack.length?' · podes anular mais '+undoStack.length:''),true);
+}
 
 function sendOff(p,t){p.secs=playerTime(p,t);p.onField=false;p.enteredAt=null;p.sentOff=true}
 
@@ -606,6 +619,7 @@ function openSheet(pid){
   $('sTitle').textContent=pLabel(p);
   $('sSub').textContent=(p.onField?'Em campo':p.sentOff?'Expulso':'No banco')+' · '+fmt(playerTime(p))+' jogados';
   document.querySelector('#sheetBg [data-act="fs"]').disabled=!p.onField;
+  [['fc','falta'],['g','golo']].forEach(([t,l])=>{const b=document.querySelector('#sheetBg [data-rm-ev="'+t+'"]'),n=count(pid,t);b.disabled=!n;b.textContent='− Retirar '+l+(n?' ('+n+')':'');});
   $('sNote').value='';$('sheetBg').classList.add('on');
 }
 function closeSheet(){$('sheetBg').classList.remove('on');sheetPid=null}
@@ -613,6 +627,12 @@ document.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>{
   const pid=sheetPid,note=$('sNote').value.trim();closeSheet();
   if(pid==='team'){logAction('hl',null,'us',note||'Momento alto');return}
   logAction(b.dataset.act,pid,'us',note);
+});
+document.querySelectorAll('[data-rm-ev]').forEach(b=>b.onclick=()=>{
+  const pid=sheetPid,type=b.dataset.rmEv;if(!pid||pid==='team')return;
+  const ev=[...S.events].reverse().find(e=>e.pid===pid&&e.type===type);if(!ev)return;
+  snap();S.events=S.events.filter(x=>x!==ev);save();renderAll();
+  openSheet(pid);toast((type==='g'?'Golo retirado':'Falta retirada')+' · '+pLabel(pById(pid)),true);
 });
 $('sClose').onclick=closeSheet;
 $('sheetBg').addEventListener('click',e=>{if(e.target.id==='sheetBg')closeSheet()});
@@ -899,6 +919,7 @@ setInterval(()=>{if(S.clock.running)tick()},500);
 
 /* ---------- cliques ---------- */
 $('btnClock').onclick=toggleClock;
+$('btnUndo').onclick=doUndo;
 $('btnPeriod').onclick=nextPeriod;
 document.addEventListener('click',async e=>{
   const tr=e.target.closest('tr[data-pseason]');if(tr){openPlayerSeason(tr.dataset.pseason);return}
@@ -1024,16 +1045,10 @@ async function copyText(text,okMsg,title){
 /* ---------- aviso + anular ---------- */
 let tt;
 function toast(m,undo=false){
-  $('toastMsg').textContent=m;$('toastUndo').style.display=undo&&undoSnap?'':'none';
-  $('toast').classList.add('on');clearTimeout(tt);tt=setTimeout(()=>{$('toast').classList.remove('on');undoSnap=null},3500);
+  $('toastMsg').textContent=m;$('toastUndo').style.display=undo&&undoStack.length?'':'none';
+  $('toast').classList.add('on');clearTimeout(tt);tt=setTimeout(()=>{$('toast').classList.remove('on')},3500);
 }
-$('toastUndo').onclick=()=>{
-  if(!undoSnap)return;
-  const restored=JSON.parse(undoSnap);
-  // manter o relógio atual ao anular
-  restored.clock=S.clock;restored.period=S.period;restored.periodStart=S.periodStart;restored.started=S.started;
-  S=restored;undoSnap=null;save();renderAll();$('toast').classList.remove('on');
-};
+$('toastUndo').onclick=doUndo;
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSheet();closeDlg(false)}});
 
 /* ---------- equipa, adversário e casa/fora ---------- */
