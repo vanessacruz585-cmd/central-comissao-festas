@@ -61,6 +61,12 @@ header{background:linear-gradient(135deg,#102f4d,#1d5c8b);color:#fff;padding-blo
 .heat>*{color:#fff;font-size:1rem;font-weight:900;border-color:rgba(255,255,255,.55)}
 .heat>* small{font-size:.64rem;font-weight:700;opacity:.92}
 .heat>.lo{color:var(--navy)}
+.prem{color:var(--blue);font-weight:800}
+.row.on .prem{color:var(--blue)}
+#sStats{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+#sStats .gpost{max-width:300px;margin-left:auto;margin-right:auto}
+.gs3{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+.gs3 .kpi b{font-size:1.1rem}
 .zread{font-size:.85rem;color:var(--muted);margin-top:8px;line-height:1.4}
 .goal{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px;border-left:5px solid var(--green)}
 .goal.against{border-left-color:var(--red)}
@@ -445,7 +451,7 @@ details.card>summary::-webkit-details-marker{display:none}
 </main>
 
 <div class="sheet-bg" id="sheetBg">
-  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sTitle">
+  <div class="sheet tall" role="dialog" aria-modal="true" aria-labelledby="sTitle">
     <h3 id="sTitle"></h3>
     <div class="sub" id="sSub"></div>
     <div class="acts">
@@ -457,6 +463,7 @@ details.card>summary::-webkit-details-marker{display:none}
       <button class="act a-rm" data-rm-ev="g">− Retirar golo</button>
       <button class="act a-rm" data-rm-ev="shot" style="grid-column:1/-1">− Retirar remate</button>
     </div>
+    <div id="sStats"></div>
     <textarea id="sNote" rows="2" placeholder="Nota opcional (ex.: zona do campo, contexto)"></textarea>
     <button class="close" id="sClose">Fechar</button>
   </div>
@@ -494,7 +501,7 @@ details.card>summary::-webkit-details-marker{display:none}
 <script>
 (()=>{
 const KEY='scouting-banco-v1';
-const APP_VERSION='2026-11-07.3';
+const APP_VERSION='2026-11-07.4';
 const $=id=>document.getElementById(id);
 
 const TYPES={
@@ -669,6 +676,7 @@ function openSheet(pid){
   $('sSub').textContent=(p.onField?'Em campo':p.sentOff?'Expulso':'No banco')+' · '+fmt(playerTime(p))+' jogados';
   ['fs','sh','so'].forEach(t=>document.querySelector('#sheetBg [data-act="'+t+'"]').disabled=!p.onField);
   [['fc','falta'],['g','golo'],['shot','remate']].forEach(([t,l])=>{const b=document.querySelector('#sheetBg [data-rm-ev="'+t+'"]'),n=t==='shot'?count(pid,'sh')+count(pid,'so'):count(pid,t);b.disabled=!n;b.textContent='− Retirar '+l+(n?' ('+n+')':'');});
+  $('sStats').innerHTML=gameStats(p);
   $('sNote').value='';$('sheetBg').classList.add('on');
 }
 function closeSheet(){$('sheetBg').classList.remove('on');sheetPid=null}
@@ -697,7 +705,7 @@ function rowHtml(p){
   let flags='';for(let k=0;k<Math.min(y,2);k++)flags+='<i class="flag y"></i>';if(r)flags+='<i class="flag r"></i>';
   const cls=p.sentOff?'row sent off':p.onField?'row on':'row off';
   return `<div class="${cls}" id="row-${p.id}">${io}
-    <div class="who" data-who="${p.id}"><span class="num">${p.num}</span><div class="nm"><div class="pname"><span class="pn">${p.num}</span>${esc(p.name)}${p.gk?'<span class="gkb">GR</span>':''}${flags}</div><div class="ptime" data-time="${p.id}">${fmt(playerTime(p))}</div></div></div>
+    <div class="who" data-who="${p.id}"><span class="num">${p.num}</span><div class="nm"><div class="pname"><span class="pn">${p.num}</span>${esc(p.name)}${p.gk?'<span class="gkb">GR</span>':''}${flags}</div><div class="ptime"><span data-time="${p.id}">${fmt(playerTime(p))}</span>${(sh+so+g)?`<span class="prem"> · ${sh+so+g} rem.</span>`:''}${p.gk&&count(p.id,'sv')?`<span class="prem"> · ${count(p.id,'sv')} def.</span>`:''}</div></div></div>
     <button class="cnt f${fc?'':' zero'}" data-a="fc" data-p="${p.id}" aria-label="Falta cometida" ${p.onField?'':'disabled'}>${fc}<small>falta</small></button>
     <button class="cnt g${g?'':' zero'}" data-a="g" data-p="${p.id}" aria-label="Golo" ${p.onField?'':'disabled'}>${g}<small>golo</small></button>
     <button class="cnt sh shot${sh?'':' zero'}" data-a="sh" data-p="${p.id}" aria-label="Remate enquadrado" ${p.onField?'':'disabled'}>${sh}<small>enquad.</small></button>
@@ -1185,6 +1193,18 @@ function gkZoneMap(a){
   if(best>=0)txt+=` Zona mais segura: <b>${ZONES[best].toLowerCase()}</b> (${tot[best]} de ${tot[best]} defendidos).`;
   return `<h3 class="sub">Remates à baliza que recebeu · número = golos sofridos</h3><div class="gpost"><div class="gz heat">${cells}</div></div><div class="gside"><span>◀ poste esquerdo</span><span>poste direito ▶</span></div>
     <div class="legend2"><span><i style="background:rgba(217,68,59,.8)"></i>zona onde sofre</span><span><i style="background:rgba(47,158,98,.75)"></i>defendeu tudo</span><span>visto de frente, como quem remata</span></div><div class="zread">${txt}</div>`;
+}
+// Bloco "Neste jogo" no menu do jogador.
+function gameStats(p){
+  const sh=count(p.id,'sh'),so=count(p.id,'so'),g=count(p.id,'g'),sv=count(p.id,'sv');
+  const k=[['Remates',sh+so+g],['À baliza',sh+g],['Fora',so],['Golos',g]];
+  let h=`<h3 class="sub" style="margin-top:0">Neste jogo</h3>`+(p.gk&&!(sh+so+g)?'':`<div class="gs3">${k.map(([l,v])=>`<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('')}</div>`);
+  const a={zs:zoneCounts(p.id,['sh','g']),zg:zoneCounts(p.id,['g'])};
+  if(a.zs.some(v=>v))h+=zoneMap(a);
+  if(p.gk){const b={zsv:zoneCounts(p.id,['sv']),zga:gkConceded(p.id)};
+    h+=`<div class="gs3" style="grid-template-columns:repeat(2,1fr);margin-top:10px"><div class="kpi"><b>${sv}</b><span>Defesas</span></div><div class="kpi"><b>${S.events.filter(e=>e.type==='g'&&e.team==='opp'&&(e.lineup||[]).includes(p.id)).length}</b><span>Golos sofridos</span></div></div>`;
+    if(b.zsv.some(v=>v)||b.zga.some(v=>v))h+=gkZoneMap(b);}
+  return h;
 }
 function zoneMap(a){
   const t=a.zs.reduce((x,y)=>x+y,0);
