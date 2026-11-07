@@ -49,6 +49,19 @@ header{background:linear-gradient(135deg,#102f4d,#1d5c8b);color:#fff;padding-blo
 .fteam.warn{background:#f2c230;color:#3a2c00}.fteam.warn b{color:#3a2c00}.fteam.warn .fdots i.on{background:#3a2c00}
 .fteam.over{background:var(--red);color:#fff}.fteam.over b{color:#fff}.fteam.over .fdots i.on{background:#fff}
 .goals{list-style:none;margin:0 0 12px;padding:0}
+.gpost{position:relative;aspect-ratio:3/2;border:9px solid #e9eef2;border-bottom:none;border-radius:4px 4px 0 0;background-color:#f3f8fb;
+  background-image:linear-gradient(rgba(16,47,77,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(16,47,77,.09) 1px,transparent 1px);background-size:14px 14px;
+  box-shadow:inset 0 0 0 2px #c9d6df,0 0 0 2px #c9d6df;margin:0 6px}
+.gpost::after{content:"";position:absolute;left:-30px;right:-30px;bottom:-3px;height:3px;background:#9fb3c2}
+.gz{position:absolute;inset:0;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr)}
+.gz>*{border:1px dashed rgba(16,47,77,.25);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;font-weight:800;font-size:.78rem;color:var(--muted);text-align:center;line-height:1.15}
+.gz button{background:transparent;font:inherit;font-weight:800;cursor:pointer;padding:0}
+.gz button:active,.gz button:focus-visible{background:rgba(45,134,204,.85);color:#fff;outline:none}
+.gside{display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);font-weight:700;margin:6px 10px 0}
+.heat>*{color:#fff;font-size:1rem;font-weight:900;border-color:rgba(255,255,255,.55)}
+.heat>* small{font-size:.64rem;font-weight:700;opacity:.92}
+.heat>.lo{color:var(--navy)}
+.zread{font-size:.85rem;color:var(--muted);margin-top:8px;line-height:1.4}
 .goal{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px;border-left:5px solid var(--green)}
 .goal.against{border-left-color:var(--red)}
 .goal .gh{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
@@ -448,6 +461,18 @@ details.card>summary::-webkit-details-marker{display:none}
     <button class="close" id="sClose">Fechar</button>
   </div>
 </div>
+<div class="sheet-bg" id="zBg">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="zTitle">
+    <h3 id="zTitle">🎯 Onde foi a bola?</h3>
+    <div class="sub" id="zSub"></div>
+    <div class="gpost"><div class="gz" id="zGrid">
+      <button data-zone="0">Alto<br>esq.</button><button data-zone="1">Alto<br>centro</button><button data-zone="2">Alto<br>dir.</button>
+      <button data-zone="3">Baixo<br>esq.</button><button data-zone="4">Baixo<br>centro</button><button data-zone="5">Baixo<br>dir.</button>
+    </div></div>
+    <div class="gside"><span>◀ poste esquerdo</span><span>poste direito ▶</span></div>
+    <button class="close" id="zSkip">Saltar (sem zona)</button>
+  </div>
+</div>
 <div class="sheet-bg" id="pBg">
   <div class="sheet tall" role="dialog" aria-modal="true" aria-labelledby="pTitle">
     <h3 id="pTitle"></h3>
@@ -469,7 +494,7 @@ details.card>summary::-webkit-details-marker{display:none}
 <script>
 (()=>{
 const KEY='scouting-banco-v1';
-const APP_VERSION='2026-11-07.1';
+const APP_VERSION='2026-11-07.2';
 const $=id=>document.getElementById(id);
 
 const TYPES={
@@ -617,6 +642,7 @@ function logAction(type,pid,team,note=''){
   if(p&&(type==='r'||(type==='y'&&count(pid,'y')>=2))&&p.onField)sendOff(p,t);
   else if(p&&type==='r')p.sentOff=true;
   save();renderAll();flashRow(pid);toast(msg,true);
+  if(p&&team==='us'&&(type==='sh'||type==='g')){const ev=[...S.events].reverse().find(e=>e.pid===pid&&e.type===type);if(ev)openZone(ev)}
 }
 
 function toggleIO(pid){
@@ -758,7 +784,7 @@ function evRow(e){
   const T=TYPES[e.type],p=pById(e.pid);
   if(e.type==='per')return `<li class="ev"><span class="evt">${evTime(e)}</span><span class="evb"><span class="dot" style="background:${T.color}"></span><b>${esc(e.note)}</b></span></li>`;
   const who=p?pLabel(p):e.type==='sv'?S.team:e.team==='opp'?S.opp:S.team;
-  const lu=e.type==='g'?'<span class="note">Em campo: '+esc(lineupText(e))+'</span>':'';
+  const lu=(e.zone!=null?'<span class="note">Zona: '+ZONES[e.zone].toLowerCase()+'</span>':'')+(e.type==='g'?'<span class="note">Em campo: '+esc(lineupText(e))+'</span>':'');
   return `<li class="ev${e.hl?' hl':''}"><span class="evt">${evTime(e)}</span><span class="evb"><span class="dot" style="background:${e.type==='g'&&e.team==='opp'?'var(--red)':T.color}"></span><b>${evLabel(e)}</b> · ${esc(who)}${e.note?'<span class="note">'+esc(e.note)+'</span>':''}${lu}</span>`+
     `<button class="ibtn${e.hl?' on':''}" data-star="${e.id}" aria-label="Momento alto">★</button><button class="ibtn" data-del="${e.id}" aria-label="Apagar">✕</button></li>`;
 }
@@ -779,6 +805,7 @@ function statsRows(){
   return S.players.filter(p=>isCalled(p)||p.secs>0||S.events.some(e=>e.pid===p.id)).map(p=>({p,num:p.num,name:p.name,min:playerTime(p,t),
     fc:count(p.id,'fc'),fs:count(p.id,'fs'),y:count(p.id,'y'),r:count(p.id,'r'),g:count(p.id,'g'),
     gm:onFor(p.id,'us'),gs:onFor(p.id,'opp'),pm:onFor(p.id,'us')-onFor(p.id,'opp'),
+    zs:zoneCounts(p.id,['sh','g']),zg:zoneCounts(p.id,['g']),
     son:count(p.id,'sh')+count(p.id,'g'),soff:count(p.id,'so'),sht:count(p.id,'sh')+count(p.id,'g')+count(p.id,'so'),sv:count(p.id,'sv'),gk:!!p.gk,
     hl:S.events.filter(e=>e.pid===p.id&&e.hl).length}));
 }
@@ -788,7 +815,7 @@ function archiveGame(){
   const t=now(),[a,b]=score(),st=S.starters||[];
   const g={id:uid(),date:Date.now(),team:S.team,opp:S.opp,home:S.home==null?null:S.home,us:a,them:b,dur:Math.round(t),
     fcUs:S.events.filter(e=>e.team==='us'&&e.type==='fc').length,fcThem:S.events.filter(e=>e.team==='opp'&&e.type==='fc').length,
-    players:statsRows().map(r=>({pid:r.p.id,num:r.num,name:r.name,st:st.includes(r.p.id),min:Math.round(r.min),g:r.g,gm:r.gm,gs:r.gs,fc:r.fc,fs:r.fs,y:r.y,r:r.r,hl:r.hl,son:r.son,soff:r.soff,sv:r.sv,gk:r.gk}))};
+    players:statsRows().map(r=>({pid:r.p.id,num:r.num,name:r.name,st:st.includes(r.p.id),min:Math.round(r.min),g:r.g,gm:r.gm,gs:r.gs,fc:r.fc,fs:r.fs,y:r.y,r:r.r,hl:r.hl,son:r.son,soff:r.soff,sv:r.sv,gk:r.gk,zs:r.zs,zg:r.zg}))};
   const ce=(team,types)=>S.events.filter(e=>e.team===team&&types.includes(e.type)).length;
   Object.assign(g,{shUs:ce('us',['sh','so','g']),shOnUs:ce('us',['sh','g']),shThem:ce('opp',['sv','os','g']),shOnThem:ce('opp',['sv','g']),sv:ce('opp',['sv'])});
   if(!S.history)S.history=[];
@@ -802,9 +829,10 @@ function seasonAgg(){
   const H=S.history||[],m=new Map();
   H.forEach(g=>g.players.forEach(r=>{
     let a=m.get(r.pid);
-    if(!a){a={pid:r.pid,num:r.num,name:r.name,called:0,played:0,st:0,min:0,g:0,gm:0,gs:0,fc:0,fs:0,y:0,r:0,hl:0,son:0,soff:0,sv:0,gk:false,avail:0,games:[]};m.set(r.pid,a)}
+    if(!a){a={pid:r.pid,num:r.num,name:r.name,called:0,played:0,st:0,min:0,g:0,gm:0,gs:0,fc:0,fs:0,y:0,r:0,hl:0,son:0,soff:0,sv:0,gk:false,zs:[0,0,0,0,0,0],zg:[0,0,0,0,0,0],avail:0,games:[]};m.set(r.pid,a)}
     a.num=r.num;a.name=r.name;a.called++;if(r.min>0){a.played++;a.avail+=g.dur}if(r.st)a.st++;
-    ['min','g','gm','gs','fc','fs','y','r','hl','son','soff','sv'].forEach(k=>a[k]+=r[k]||0);if(r.gk)a.gk=true;
+    ['min','g','gm','gs','fc','fs','y','r','hl','son','soff','sv'].forEach(k=>a[k]+=r[k]||0);
+    if(r.zs)r.zs.forEach((v,i)=>a.zs[i]+=v||0);if(r.zg)r.zg.forEach((v,i)=>a.zg[i]+=v||0);if(r.gk)a.gk=true;
     a.games.push({g,r});
   }));
   m.forEach(a=>{const p=pById(a.pid);if(p){a.num=p.num;a.name=p.name}a.pm=a.gm-a.gs;a.mpg=a.played?a.min/a.played:0;a.g40=a.min>=300?a.g*2400/a.min:-1;a.c=a.y+a.r;if(p&&p.gk)a.gk=true;
@@ -857,6 +885,7 @@ function openPlayerSeason(pid){
   const lbls=a.games.map(({g})=>`<span>${esc(g.opp.split(' ')[0])}</span>`).join('');
   const rows=a.games.slice().reverse().map(({g,r})=>`<tr><td>${dShort(g.date)}</td><td>${esc(g.opp)}${g.home!=null?' <span class="vn">'+(g.home?'C':'F')+'</span>':''}</td><td><span class="res ${res(g)}">${g.us}–${g.them}</span></td><td>${r.st?'Sim':''}</td><td>${mins(r.min)}</td><td class="${r.g?'':'z'}">${r.g}</td><td class="${r.gm-r.gs>0?'pos':r.gm-r.gs<0?'neg':'z'}">${sign(r.gm-r.gs)}</td><td class="${r.fc?'':'z'}">${r.fc}</td><td class="${r.fs?'':'z'}">${r.fs}</td><td>${(r.y?r.y+'🟨':'')+(r.r?'🟥':'')}</td></tr>`).join('');
   $('pBody').innerHTML=`<div class="pk">${k.map(([l,v])=>`<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
+    ${zoneMap(a)}
     <h3 class="sub">Minutos por jogo</h3><div class="bars">${bars}</div><div class="barlbl">${lbls}</div>
     <div class="legend2"><span><i style="background:var(--navy)"></i>Titular</span><span><i style="background:var(--blue)"></i>Suplente</span><span>⚽ golos</span></div>
     <h3 class="sub">Jogo a jogo</h3>
@@ -1110,13 +1139,46 @@ function toast(m,undo=false){
   $('toast').classList.add('on');clearTimeout(tt);tt=setTimeout(()=>{$('toast').classList.remove('on')},3500);
 }
 $('toastUndo').onclick=doUndo;
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSheet();closeDlg(false)}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSheet();closeDlg(false);closeZone()}});
 
 /* ---------- equipa, adversário e casa/fora ---------- */
 $('pTeam').addEventListener('input',e=>{S.team=e.target.value.trim()||'A minha equipa';save();renderHeader();renderSetup();renderPrep()});
 $('pOpp').addEventListener('input',e=>{S.opp=e.target.value.trim()||'Adversário';save();renderHeader();renderSetup();renderPrep();$('oppTitle').textContent=S.opp});
 $('haHome').onclick=()=>{S.home=true;save();renderHeader();renderPrep()};
 $('haAway').onclick=()=>{S.home=false;save();renderHeader();renderPrep()};
+
+/* ---------- zona da baliza ---------- */
+const ZONES=['Alto esquerdo','Alto centro','Alto direito','Baixo esquerdo','Baixo centro','Baixo direito'];
+let zoneEv=null;
+function openZone(ev){
+  zoneEv=ev.id;const p=pById(ev.pid);
+  $('zTitle').textContent=(ev.type==='g'?'⚽ Golo':'🎯 Remate enquadrado')+' · onde foi a bola?';
+  $('zSub').textContent=(p?pLabel(p)+' · ':'')+'baliza vista de frente, como quem remata';
+  $('zBg').classList.add('on');
+}
+function closeZone(){$('zBg').classList.remove('on');zoneEv=null}
+$('zGrid').addEventListener('click',e=>{
+  const b=e.target.closest('[data-zone]');if(!b||!zoneEv)return;
+  const ev=S.events.find(x=>x.id===zoneEv);if(ev){ev.zone=+b.dataset.zone;save();renderTimeline()}
+  closeZone();toast('Zona: '+ZONES[+b.dataset.zone].toLowerCase());
+});
+$('zSkip').onclick=closeZone;
+$('zBg').addEventListener('click',e=>{if(e.target.id==='zBg')closeZone()});
+function zoneCounts(pid,types){const z=[0,0,0,0,0,0];S.events.forEach(e=>{if(e.pid===pid&&types.includes(e.type)&&e.zone!=null)z[e.zone]++});return z}
+function zoneMap(a){
+  const t=a.zs.reduce((x,y)=>x+y,0);
+  if(!t)return '<h3 class="sub">Onde remata</h3><div class="zread">Ainda sem zonas registadas. Ao marcar um remate enquadrado ou um golo, escolhe a zona da baliza.</div>';
+  const mx=Math.max(...a.zs);
+  const cells=a.zs.map((v,i)=>{const al=v?0.18+0.77*v/mx:0.08;const g=a.zg[i];
+    return `<div class="${al<0.4?'lo':''}" style="background:rgba(45,134,204,${al.toFixed(2)})" title="${ZONES[i]}">${v}<small>${g?g+' golo'+(g>1?'s':''):'0 golos'}</small></div>`}).join('');
+  const L=a.zs[0]+a.zs[3],C=a.zs[1]+a.zs[4],R=a.zs[2]+a.zs[5],H=a.zs[0]+a.zs[1]+a.zs[2];
+  const side=Math.max(L,C,R),sideTxt=side===R?'lado direito':side===L?'lado esquerdo':'centro';
+  const gt=a.zg.reduce((x,y)=>x+y,0),bestG=gt?a.zg.indexOf(Math.max(...a.zg)):-1;
+  const alt=H*2===t?'tanto <b>alto</b> como <b>baixo</b>':H*2>t?`mais <b>alto</b> (${H} de ${t})`:`mais <b>baixo</b> (${t-H} de ${t})`;
+  let txt=`Remata mais para o <b>${sideTxt}</b> (${side} de ${t}) e ${alt}.`;
+  if(gt)txt+=` Marca mais no <b>${ZONES[bestG].toLowerCase()}</b> (${a.zg[bestG]} de ${gt} golo${gt>1?'s':''}).`;
+  return `<h3 class="sub">Onde remata · ${t} remates enquadrados com zona</h3><div class="gpost"><div class="gz heat">${cells}</div></div><div class="gside"><span>◀ poste esquerdo</span><span>poste direito ▶</span></div><div class="zread">${txt}</div>`;
+}
 
 /* ---------- cópias de segurança ---------- */
 $('btnCopySquad').onclick=sendSquad;
