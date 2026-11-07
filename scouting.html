@@ -61,7 +61,11 @@ header{background:linear-gradient(135deg,#102f4d,#1d5c8b);color:#fff;padding-blo
 .heat>*{color:#fff;font-size:1rem;font-weight:900;border-color:rgba(255,255,255,.55)}
 .heat>* small{font-size:.64rem;font-weight:700;opacity:.92}
 .heat>.lo{color:var(--navy)}
-.zf{white-space:nowrap;font-weight:700;color:var(--blue)}
+.zf{white-space:nowrap;font-weight:800;color:var(--muted)}
+.zf .zp{color:var(--green)}.zf .zm{color:var(--red)}
+.zlegend{font-size:.74rem;color:var(--muted);margin-top:6px;line-height:1.4}
+.gz>*{position:relative}
+.gz .zn{position:absolute;top:4px;left:6px;font-style:normal;font-size:.7rem;font-weight:900;opacity:.65}
 .prem{color:var(--blue);font-weight:800}
 .row.on .prem{color:var(--blue)}
 #sStats{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
@@ -394,6 +398,7 @@ details.card>summary::-webkit-details-marker{display:none}
     <ul class="goals" id="goalList"></ul>
     <h3 class="sub">Por jogador · GM/GS = golos marcados/sofridos com ele em campo · toca no cabeçalho para ordenar</h3>
     <div class="tw"><table id="statTable"></table></div>
+    <div class="zlegend">Zonas da baliza, vista de frente: <b>1</b> alto esq. · <b>2</b> alto centro · <b>3</b> alto dir. · <b>4</b> baixo esq. · <b>5</b> baixo centro · <b>6</b> baixo dir.</div>
     <div class="btnrow">
       <button class="btn" id="btnCsv">Copiar para Excel</button>
       <button class="btn sec" id="btnCopy">Copiar resumo</button>
@@ -474,8 +479,8 @@ details.card>summary::-webkit-details-marker{display:none}
     <h3 id="zTitle">🎯 Onde foi a bola?</h3>
     <div class="sub" id="zSub"></div>
     <div class="gpost"><div class="gz" id="zGrid">
-      <button data-zone="0">Alto<br>esq.</button><button data-zone="1">Alto<br>centro</button><button data-zone="2">Alto<br>dir.</button>
-      <button data-zone="3">Baixo<br>esq.</button><button data-zone="4">Baixo<br>centro</button><button data-zone="5">Baixo<br>dir.</button>
+      <button data-zone="0"><i class="zn">1</i>Alto<br>esq.</button><button data-zone="1"><i class="zn">2</i>Alto<br>centro</button><button data-zone="2"><i class="zn">3</i>Alto<br>dir.</button>
+      <button data-zone="3"><i class="zn">4</i>Baixo<br>esq.</button><button data-zone="4"><i class="zn">5</i>Baixo<br>centro</button><button data-zone="5"><i class="zn">6</i>Baixo<br>dir.</button>
     </div></div>
     <div class="gside"><span>◀ poste esquerdo</span><span>poste direito ▶</span></div>
     <button class="close" id="zSkip">Saltar (sem zona)</button>
@@ -502,14 +507,15 @@ details.card>summary::-webkit-details-marker{display:none}
 <script>
 (()=>{
 const KEY='scouting-banco-v1';
-const APP_VERSION='2026-11-07.5';
+const APP_VERSION='2026-11-07.6';
 // Zona da baliza onde o jogador mais remata, ex.: "Alto dir. (7)". Empate: "Alto dir. / Baixo esq. (3)".
 function favZone(z){
-  const L=['Alto esq.','Alto centro','Alto dir.','Baixo esq.','Baixo centro','Baixo dir.'];
-  const mx=Math.max(...(z||[0]));if(!mx)return '–';
-  const top=z.map((v,i)=>v===mx?L[i]:null).filter(Boolean);
-  return (top.length>2?top.slice(0,2).join(' / ')+'…':top.join(' / '))+' ('+mx+')';
+  // Zonas numeradas 1-6 (em cima 1·2·3, em baixo 4·5·6). Ex.: "+3 −4,5".
+  z=z||[0,0,0,0,0,0];const mx=Math.max(...z),mn=Math.min(...z);if(!mx)return '–';
+  const nums=v=>{const n=z.map((x,i)=>x===v?i+1:0).filter(Boolean);return n.length>3?n.slice(0,3).join(',')+'…':n.join(',')};
+  return mx===mn?'= '+nums(mx):'+'+nums(mx)+' −'+nums(mn);
 }
+const zoneHtml=v=>v==='–'?v:'<span class="zf">'+v.replace(/^(\+\S+)/,'<b class="zp">$1</b>').replace(/(−\S+)$/,'<b class="zm">$1</b>')+'</span>';
 const $=id=>document.getElementById(id);
 
 const TYPES={
@@ -813,7 +819,7 @@ function renderTimeline(){
 }
 
 let sortKey='num',sortDir=1;
-const COLS=[['num','N.º'],['name','Jogador'],['min','Tempo'],['g','Golos'],['gm','GM em campo'],['gs','GS em campo'],['pm','+/-'],['sht','Remates'],['son','À baliza'],['zfav','Remata mais'],['sv','Defesas GR'],['fc','Faltas c.'],['fs','Faltas s.'],['y','🟨'],['r','🟥'],['hl','⭐']];
+const COLS=[['num','N.º'],['name','Jogador'],['min','Tempo'],['g','Golos'],['gm','GM em campo'],['gs','GS em campo'],['pm','+/-'],['sht','Remates'],['son','À baliza'],['zfav','Zonas +/−'],['sv','Defesas GR'],['fc','Faltas c.'],['fs','Faltas s.'],['y','🟨'],['r','🟥'],['hl','⭐']];
 const onFor=(pid,team)=>S.events.filter(e=>e.type==='g'&&e.team===team&&(e.lineup||[]).includes(pid)).length;
 const sign=n=>n>0?'+'+n:String(n);
 function statsRows(){
@@ -857,7 +863,7 @@ function seasonAgg(){
   return [...m.values()];
 }
 let sSort='min',sDir=-1;
-const SCOLS=[['num','N.º'],['name','Jogador'],['called','Jogos'],['st','Titular'],['min','Minutos'],['mpg','Min/jogo'],['g','Golos'],['g40','Golos/40'],['pm','+/-'],['sht','Remates'],['acc','% à baliza'],['zfav','Remata mais'],['sv','Defesas'],['fc','Faltas c.'],['fs','Faltas s.'],['c','Cartões']];
+const SCOLS=[['num','N.º'],['name','Jogador'],['called','Jogos'],['st','Titular'],['min','Minutos'],['mpg','Min/jogo'],['g','Golos'],['g40','Golos/40'],['pm','+/-'],['sht','Remates'],['acc','% à baliza'],['zfav','Zonas +/−'],['sv','Defesas'],['fc','Faltas c.'],['fs','Faltas s.'],['c','Cartões']];
 function renderSeason(){
   const H=S.history||[];
   $('seasonCount').textContent=H.length?H.length+' jogo'+(H.length>1?'s':'')+' guardado'+(H.length>1?'s':''):'';
@@ -873,7 +879,7 @@ function renderSeason(){
   const top=(key,fmtv)=>{const c=A.filter(a=>key==='pm'?a.played:a[key]>0).sort((x,y)=>y[key]-x[key]||y.min-x.min)[0];return c?`<b>${c.num} ${esc(c.name)}</b><i>${fmtv(c)}</i>`:'<b>–</b>'};
   const rows=A.slice().sort((x,y)=>{const a=x[sSort],b=y[sSort];return (typeof a==='string'?a.localeCompare(b):a-b)*sDir||x.num-y.num});
   const cell=(a,k)=>{const v=a[k];
-    const pc=x=>x<0?'–':Math.round(x*100)+'%';if(k==='acc')return pc(v);if(k==='zfav')return '<span class="zf">'+v+'</span>';if(k==='name')return esc(v)+(a.gk?' <span class="gkb">GR</span>':'');if(k==='min')return mins(v);if(k==='mpg')return a.played?mins(v):'–';if(k==='g40')return v<0?'–':v.toFixed(1).replace('.',',');
+    const pc=x=>x<0?'–':Math.round(x*100)+'%';if(k==='acc')return pc(v);if(k==='zfav')return zoneHtml(v);if(k==='name')return esc(v)+(a.gk?' <span class="gkb">GR</span>':'');if(k==='min')return mins(v);if(k==='mpg')return a.played?mins(v):'–';if(k==='g40')return v<0?'–':v.toFixed(1).replace('.',',');
     if(k==='pm')return sign(v);if(k==='name')return esc(v);if(k==='c')return (a.y?a.y+'🟨':'')+(a.r?' '+a.r+'🟥':'')||0;return v};
   $('seasonBody').innerHTML=`<div class="kpis">${k.map(([l,v])=>`<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
     <div class="hilite"><div class="hl3"><span>Melhor marcador</span>${top('g',c=>c.g+' golos')}</div>
@@ -881,7 +887,7 @@ function renderSeason(){
     <div class="hl3"><span>Mais minutos</span>${top('min',c=>mins(c.min)+' min')}</div></div>
     <h3 class="sub">Jogadores · toca num nome para ver a análise</h3>
     <div class="tw"><table id="seasonTable"><thead><tr>${SCOLS.map(([k,l])=>`<th data-ssort="${k}">${l}${sSort===k?(sDir<0?' ↓':' ↑'):''}</th>`).join('')}</tr></thead>
-    <tbody>${rows.map(a=>`<tr data-pseason="${a.pid}">${SCOLS.map(([k])=>{const v=a[k];const cl=k==='pm'?(v>0?'pos':v<0?'neg':'z'):(v===0?'z':'');return `<td class="${cl}">${cell(a,k)}</td>`}).join('')}</tr>`).join('')}</tbody></table></div>
+    <tbody>${rows.map(a=>`<tr data-pseason="${a.pid}">${SCOLS.map(([k])=>{const v=a[k];const cl=k==='pm'?(v>0?'pos':v<0?'neg':'z'):(v===0?'z':'');return `<td class="${cl}">${cell(a,k)}</td>`}).join('')}</tr>`).join('')}</tbody></table></div><div class="zlegend">Zonas da baliza, vista de frente: <b>1</b> alto esq. · <b>2</b> alto centro · <b>3</b> alto dir. · <b>4</b> baixo esq. · <b>5</b> baixo centro · <b>6</b> baixo dir.</div>
     <h3 class="sub">Jogos guardados</h3>
     <ul class="games">${H.slice().reverse().map(g=>`<li><span class="gd">${dShort(g.date)}</span><span class="gt">${esc(g.team)} vs ${esc(g.opp)} ${g.home!=null?`<span class="vn">${g.home?'Casa':'Fora'}</span>`:''}</span><span class="res ${res(g)}">${g.us}–${g.them}</span><button class="ibtn" data-delgame="${g.id}" aria-label="Apagar jogo">✕</button></li>`).join('')}</ul>`;
 }
@@ -928,7 +934,7 @@ function renderResumo(){
   $('kpis').innerHTML=k.map(([l,v])=>`<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join('');
   const rows=statsRows().sort((x,y)=>{const A=x[sortKey],B=y[sortKey];return (typeof A==='string'?A.localeCompare(B):A-B)*sortDir||x.num-y.num});
   $('statTable').innerHTML='<thead><tr>'+COLS.map(([k,l])=>`<th data-sort="${k}">${l}${sortKey===k?(sortDir<0?' ↓':' ↑'):''}</th>`).join('')+'</tr></thead><tbody>'+
-    (rows.length?rows.map(r=>'<tr>'+COLS.map(([k])=>{const v=r[k];const cl=k==='pm'?(v>0?'pos':v<0?'neg':'z'):v===0?'z':'';return `<td class="${cl}" ${k==='min'?`data-time-cell="${r.p.id}"`:''}>${k==='min'?fmt(v):k==='name'?esc(v):k==='pm'?sign(v):k==='zfav'?'<span class="zf">'+v+'</span>':v}</td>`}).join('')+'</tr>').join(''):`<tr><td colspan="${COLS.length}" class="empty">Sem jogadores.</td></tr>`)+'</tbody>';
+    (rows.length?rows.map(r=>'<tr>'+COLS.map(([k])=>{const v=r[k];const cl=k==='pm'?(v>0?'pos':v<0?'neg':'z'):v===0?'z':'';return `<td class="${cl}" ${k==='min'?`data-time-cell="${r.p.id}"`:''}>${k==='min'?fmt(v):k==='name'?esc(v):k==='pm'?sign(v):k==='zfav'?zoneHtml(v):v}</td>`}).join('')+'</tr>').join(''):`<tr><td colspan="${COLS.length}" class="empty">Sem jogadores.</td></tr>`)+'</tbody>';
 }
 function renderSetup(){
   if(document.activeElement!==$('fTeam'))$('fTeam').value=S.team;
@@ -1189,10 +1195,10 @@ function gkZoneMap(a){
   const tot=a.zsv.map((v,i)=>v+a.zga[i]),T=tot.reduce((x,y)=>x+y,0);
   if(!T)return '<h3 class="sub">Remates à baliza que recebeu</h3><div class="zread">Ainda sem zonas registadas. Ao marcar 🧤 Defesa do GR ou Golo sofrido, escolhe a zona da baliza.</div>';
   const cells=tot.map((n,i)=>{
-    if(!n)return `<div class="lo" style="background:rgba(16,47,77,.06)">–<small>sem remates</small></div>`;
+    if(!n)return `<div class="lo" style="background:rgba(16,47,77,.06)"><i class="zn">${i+1}</i>–<small>sem remates</small></div>`;
     const ga=a.zga[i],rate=ga/n,pct=Math.round((1-rate)*100);
     const bg=ga?`rgba(217,68,59,${(0.3+0.6*rate).toFixed(2)})`:`rgba(47,158,98,${(0.45+0.4*Math.min(1,n/Math.max(...tot))).toFixed(2)})`;
-    return `<div style="background:${bg}" title="${ZONES[i]}">${ga}<small>de ${n} · ${pct}%</small></div>`}).join('');
+    return `<div style="background:${bg}" title="${ZONES[i]}"><i class="zn">${i+1}</i>${ga}<small>de ${n} · ${pct}%</small></div>`}).join('');
   const GA=a.zga.reduce((x,y)=>x+y,0),SV=a.zsv.reduce((x,y)=>x+y,0);
   let weak=-1,wr=-1;tot.forEach((n,i)=>{if(n&&a.zga[i]){const r=a.zga[i]/n;if(r>wr||(r===wr&&n>tot[weak])){wr=r;weak=i}}});
   let best=-1;tot.forEach((n,i)=>{if(n&&!a.zga[i]&&(best<0||n>tot[best]))best=i});
@@ -1219,7 +1225,7 @@ function zoneMap(a){
   if(!t)return '<h3 class="sub">Onde remata</h3><div class="zread">Ainda sem zonas registadas. Ao marcar um remate enquadrado ou um golo, escolhe a zona da baliza.</div>';
   const mx=Math.max(...a.zs);
   const cells=a.zs.map((v,i)=>{const al=v?0.18+0.77*v/mx:0.08;const g=a.zg[i];
-    return `<div class="${al<0.4?'lo':''}" style="background:rgba(45,134,204,${al.toFixed(2)})" title="${ZONES[i]}">${v}<small>${g?g+' golo'+(g>1?'s':''):'0 golos'}</small></div>`}).join('');
+    return `<div class="${al<0.4?'lo':''}" style="background:rgba(45,134,204,${al.toFixed(2)})" title="${ZONES[i]}"><i class="zn">${i+1}</i>${v}<small>${g?g+' golo'+(g>1?'s':''):'0 golos'}</small></div>`}).join('');
   const L=a.zs[0]+a.zs[3],C=a.zs[1]+a.zs[4],R=a.zs[2]+a.zs[5],H=a.zs[0]+a.zs[1]+a.zs[2];
   const side=Math.max(L,C,R),sideTxt=side===R?'lado direito':side===L?'lado esquerdo':'centro';
   const gt=a.zg.reduce((x,y)=>x+y,0),bestG=gt?a.zg.indexOf(Math.max(...a.zg)):-1;
