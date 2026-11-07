@@ -72,6 +72,9 @@ header{background:linear-gradient(135deg,#102f4d,#1d5c8b);color:#fff;padding-blo
 #sStats .gpost{max-width:300px;margin-left:auto;margin-right:auto}
 .gs3{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
 .gs3 .kpi b{font-size:1.1rem}
+.tmaps{display:grid;grid-template-columns:1fr;gap:14px;margin:4px 0 12px}
+.tmaps>div{min-width:0}
+@media(min-width:700px){.tmaps{grid-template-columns:1fr 1fr}}
 .zread{font-size:.85rem;color:var(--muted);margin-top:8px;line-height:1.4}
 .goal{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px;border-left:5px solid var(--green)}
 .goal.against{border-left-color:var(--red)}
@@ -507,7 +510,7 @@ details.card>summary::-webkit-details-marker{display:none}
 <script>
 (()=>{
 const KEY='scouting-banco-v1';
-const APP_VERSION='2026-11-07.6';
+const APP_VERSION='2026-11-07.7';
 // Zona da baliza onde o jogador mais remata, ex.: "Alto dir. (7)". Empate: "Alto dir. / Baixo esq. (3)".
 function favZone(z){
   // Zonas numeradas 1-6 (em cima 1·2·3, em baixo 4·5·6). Ex.: "+3 −4,5".
@@ -839,6 +842,8 @@ function archiveGame(){
     fcUs:S.events.filter(e=>e.team==='us'&&e.type==='fc').length,fcThem:S.events.filter(e=>e.team==='opp'&&e.type==='fc').length,
     players:statsRows().map(r=>({pid:r.p.id,num:r.num,name:r.name,st:st.includes(r.p.id),min:Math.round(r.min),g:r.g,gm:r.gm,gs:r.gs,fc:r.fc,fs:r.fs,y:r.y,r:r.r,hl:r.hl,son:r.son,soff:r.soff,sv:r.sv,gk:r.gk,zs:r.zs,zg:r.zg,zsv:r.gk?r.zsv:undefined,zga:r.gk?r.zga:undefined}))};
   const ce=(team,types)=>S.events.filter(e=>e.team===team&&types.includes(e.type)).length;
+  const zt=(team,types)=>{const z=[0,0,0,0,0,0];S.events.forEach(e=>{if(e.team===team&&types.includes(e.type)&&e.zone!=null)z[e.zone]++});return z};
+  Object.assign(g,{zUs:zt('us',['sh','g']),zUsG:zt('us',['g']),zSv:zt('opp',['sv']),zGa:zt('opp',['g'])});
   Object.assign(g,{shUs:ce('us',['sh','so','g']),shOnUs:ce('us',['sh','g']),shThem:ce('opp',['sv','os','g']),shOnThem:ce('opp',['sv','g']),sv:ce('opp',['sv'])});
   if(!S.history)S.history=[];
   S.history.push(g);S.archived=g.id;
@@ -885,6 +890,7 @@ function renderSeason(){
     <div class="hilite"><div class="hl3"><span>Melhor marcador</span>${top('g',c=>c.g+' golos')}</div>
     <div class="hl3"><span>Melhor +/-</span>${top('pm',c=>sign(c.pm))}</div>
     <div class="hl3"><span>Mais minutos</span>${top('min',c=>mins(c.min)+' min')}</div></div>
+    <div class="tmaps">${teamMaps(H)}</div>
     <h3 class="sub">Jogadores · toca num nome para ver a análise</h3>
     <div class="tw"><table id="seasonTable"><thead><tr>${SCOLS.map(([k,l])=>`<th data-ssort="${k}">${l}${sSort===k?(sDir<0?' ↓':' ↑'):''}</th>`).join('')}</tr></thead>
     <tbody>${rows.map(a=>`<tr data-pseason="${a.pid}">${SCOLS.map(([k])=>{const v=a[k];const cl=k==='pm'?(v>0?'pos':v<0?'neg':'z'):(v===0?'z':'');return `<td class="${cl}">${cell(a,k)}</td>`}).join('')}</tr>`).join('')}</tbody></table></div><div class="zlegend">Zonas da baliza, vista de frente: <b>1</b> alto esq. · <b>2</b> alto centro · <b>3</b> alto dir. · <b>4</b> baixo esq. · <b>5</b> baixo centro · <b>6</b> baixo dir.</div>
@@ -1191,9 +1197,9 @@ $('zBg').addEventListener('click',e=>{if(e.target.id==='zBg')closeZone()});
 function zoneCounts(pid,types){const z=[0,0,0,0,0,0];S.events.forEach(e=>{if(e.pid===pid&&types.includes(e.type)&&e.zone!=null)z[e.zone]++});return z}
 // Golos sofridos por zona com este GR em campo.
 function gkConceded(pid){const z=[0,0,0,0,0,0];S.events.forEach(e=>{if(e.type==='g'&&e.team==='opp'&&e.zone!=null&&(e.lineup||[]).includes(pid))z[e.zone]++});return z}
-function gkZoneMap(a){
+function gkZoneMap(a,o={}){
   const tot=a.zsv.map((v,i)=>v+a.zga[i]),T=tot.reduce((x,y)=>x+y,0);
-  if(!T)return '<h3 class="sub">Remates à baliza que recebeu</h3><div class="zread">Ainda sem zonas registadas. Ao marcar 🧤 Defesa do GR ou Golo sofrido, escolhe a zona da baliza.</div>';
+  if(!T)return '<h3 class="sub">'+(o.title||'Remates à baliza que recebeu')+'</h3><div class="zread">Ainda sem zonas registadas. Ao marcar 🧤 Defesa do GR ou Golo sofrido, escolhe a zona da baliza.</div>';
   const cells=tot.map((n,i)=>{
     if(!n)return `<div class="lo" style="background:rgba(16,47,77,.06)"><i class="zn">${i+1}</i>–<small>sem remates</small></div>`;
     const ga=a.zga[i],rate=ga/n,pct=Math.round((1-rate)*100);
@@ -1202,10 +1208,10 @@ function gkZoneMap(a){
   const GA=a.zga.reduce((x,y)=>x+y,0),SV=a.zsv.reduce((x,y)=>x+y,0);
   let weak=-1,wr=-1;tot.forEach((n,i)=>{if(n&&a.zga[i]){const r=a.zga[i]/n;if(r>wr||(r===wr&&n>tot[weak])){wr=r;weak=i}}});
   let best=-1;tot.forEach((n,i)=>{if(n&&!a.zga[i]&&(best<0||n>tot[best]))best=i});
-  let txt=`Recebeu ${T} remate${T>1?'s':''} à baliza com zona: ${SV} defesa${SV===1?'':'s'} e ${GA} golo${GA===1?'':'s'} sofrido${GA===1?'':'s'} (${Math.round(SV*100/T)}% defesas).`;
-  if(weak>=0)txt+=` O ponto fraco é o <b>${ZONES[weak].toLowerCase()}</b>: sofreu ${a.zga[weak]} de ${tot[weak]}.`;
+  let txt=`${o.recv||'Recebeu'} ${T} remate${T>1?'s':''} à baliza com zona: ${SV} defesa${SV===1?'':'s'} e ${GA} golo${GA===1?'':'s'} sofrido${GA===1?'':'s'} (${Math.round(SV*100/T)}% defesas).`;
+  if(weak>=0)txt+=` O ponto fraco é o <b>${ZONES[weak].toLowerCase()}</b>: ${o.suf||'sofreu'} ${a.zga[weak]} de ${tot[weak]}.`;
   if(best>=0)txt+=` Zona mais segura: <b>${ZONES[best].toLowerCase()}</b> (${tot[best]} de ${tot[best]} defendidos).`;
-  return `<h3 class="sub">Remates à baliza que recebeu · número = golos sofridos</h3><div class="gpost"><div class="gz heat">${cells}</div></div><div class="gside"><span>◀ poste esquerdo</span><span>poste direito ▶</span></div>
+  return `<h3 class="sub">${o.title||'Remates à baliza que recebeu'} · número = golos sofridos</h3><div class="gpost"><div class="gz heat">${cells}</div></div><div class="gside"><span>◀ poste esquerdo</span><span>poste direito ▶</span></div>
     <div class="legend2"><span><i style="background:rgba(217,68,59,.8)"></i>zona onde sofre</span><span><i style="background:rgba(47,158,98,.75)"></i>defendeu tudo</span><span>visto de frente, como quem remata</span></div><div class="zread">${txt}</div>`;
 }
 // Bloco "Neste jogo" no menu do jogador.
@@ -1220,9 +1226,19 @@ function gameStats(p){
     if(b.zsv.some(v=>v)||b.zga.some(v=>v))h+=gkZoneMap(b);}
   return h;
 }
-function zoneMap(a){
+// Mapas da equipa na época. Jogos antigos sem zonas da equipa usam os totais dos jogadores.
+function teamMaps(H){
+  const add=(t,z)=>{if(z)z.forEach((v,i)=>t[i]+=v||0)};
+  const us={zs:[0,0,0,0,0,0],zg:[0,0,0,0,0,0]},th={zsv:[0,0,0,0,0,0],zga:[0,0,0,0,0,0]};
+  H.forEach(g=>{
+    if(g.zUs){add(us.zs,g.zUs);add(us.zg,g.zUsG);add(th.zsv,g.zSv);add(th.zga,g.zGa)}
+    else g.players.forEach(r=>{add(us.zs,r.zs);add(us.zg,r.zg);if(r.gk){add(th.zsv,r.zsv);add(th.zga,r.zga)}});
+  });
+  return `<div>${zoneMap(us,{title:'Onde rematamos',shoot:'Rematamos',score:'Marcamos'})}</div><div>${gkZoneMap(th,{title:'Onde sofremos',recv:'Recebemos',suf:'sofremos'})}</div>`;
+}
+function zoneMap(a,o={}){
   const t=a.zs.reduce((x,y)=>x+y,0);
-  if(!t)return '<h3 class="sub">Onde remata</h3><div class="zread">Ainda sem zonas registadas. Ao marcar um remate enquadrado ou um golo, escolhe a zona da baliza.</div>';
+  if(!t)return '<h3 class="sub">'+(o.title||'Onde remata')+'</h3><div class="zread">Ainda sem zonas registadas. Ao marcar um remate enquadrado ou um golo, escolhe a zona da baliza.</div>';
   const mx=Math.max(...a.zs);
   const cells=a.zs.map((v,i)=>{const al=v?0.18+0.77*v/mx:0.08;const g=a.zg[i];
     return `<div class="${al<0.4?'lo':''}" style="background:rgba(45,134,204,${al.toFixed(2)})" title="${ZONES[i]}"><i class="zn">${i+1}</i>${v}<small>${g?g+' golo'+(g>1?'s':''):'0 golos'}</small></div>`}).join('');
@@ -1230,9 +1246,9 @@ function zoneMap(a){
   const side=Math.max(L,C,R),sideTxt=side===R?'lado direito':side===L?'lado esquerdo':'centro';
   const gt=a.zg.reduce((x,y)=>x+y,0),bestG=gt?a.zg.indexOf(Math.max(...a.zg)):-1;
   const alt=H*2===t?'tanto <b>alto</b> como <b>baixo</b>':H*2>t?`mais <b>alto</b> (${H} de ${t})`:`mais <b>baixo</b> (${t-H} de ${t})`;
-  let txt=`Remata mais para o <b>${sideTxt}</b> (${side} de ${t}) e ${alt}.`;
-  if(gt)txt+=` Marca mais no <b>${ZONES[bestG].toLowerCase()}</b> (${a.zg[bestG]} de ${gt} golo${gt>1?'s':''}).`;
-  return `<h3 class="sub">Onde remata · ${t} remates enquadrados com zona</h3><div class="gpost"><div class="gz heat">${cells}</div></div><div class="gside"><span>◀ poste esquerdo</span><span>poste direito ▶</span></div><div class="zread">${txt}</div>`;
+  let txt=`${o.shoot||'Remata'} mais para o <b>${sideTxt}</b> (${side} de ${t}) e ${alt}.`;
+  if(gt)txt+=` ${o.score||'Marca'} mais no <b>${ZONES[bestG].toLowerCase()}</b> (${a.zg[bestG]} de ${gt} golo${gt>1?'s':''}).`;
+  return `<h3 class="sub">${o.title||'Onde remata'} · ${t} remates enquadrados com zona</h3><div class="gpost"><div class="gz heat">${cells}</div></div><div class="gside"><span>◀ poste esquerdo</span><span>poste direito ▶</span></div><div class="zread">${txt}</div>`;
 }
 
 /* ---------- cópias de segurança ---------- */
